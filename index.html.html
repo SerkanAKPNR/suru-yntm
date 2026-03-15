@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- saved from url=(0065)file:///C:/Users/Dell/Downloads/koyun_uygulama_2026.03.14-15.html -->
-<html lang="tr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<html lang="tr"><head><meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Uygulama! v2026.03.15-v4</title>
-<link href="./Uygulama! v2026.03.15-v4_files/css2" rel="stylesheet">
+<title>Uygulama! v2026.03.15-v7</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0f1209;
@@ -421,29 +420,16 @@
   .animal-card { touch-action: manipulation; cursor: grab; }
   .animal-card:active { cursor: grabbing; }
 </style>
-<script src="./Uygulama! v2026.03.15-v4_files/tesseract.min.js.indir"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
-<!-- GİRİŞ EKRANI -->
-<div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;">
-  <div style="font-size:3rem;margin-bottom:16px;">🐑</div>
-  <h1 style="font-size:1.5rem;font-weight:700;color:var(--accent2);margin-bottom:8px;">Uygulama!</h1>
-  <p style="color:var(--text2);font-size:0.85rem;margin-bottom:32px;text-align:center;">Verilerinize her cihazdan erişmek için giriş yapın</p>
-  <button onclick="googleGiris()" style="background:white;color:#333;border:none;border-radius:12px;padding:14px 24px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;max-width:300px;justify-content:center;">
-    <img src="https://www.google.com/favicon.ico" width="20" height="20">
-    Google ile Giriş Yap
-  </button>
-  <div id="loginError" style="color:var(--danger);font-size:0.8rem;margin-top:16px;text-align:center;"></div>
-</div>
 
-<div id="appScreen" style="display:none;">
 <div class="header">
   <div>
     <h1>🐑 Uygulama!</h1>
     <div class="sub" id="headerSub">Toplam 22 hayvan</div>
-    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v4</div>
+    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v7</div>
   </div>
   <div id="headerRight">
   <button onclick="showPage('ayarlar')" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:0.8rem;cursor:pointer;">⚙️</button>
@@ -833,7 +819,7 @@
   </div>
   <div class="sec-title">Uygulama Hakkında</div>
   <div class="detail-card">
-    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v4</span></div>
+    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v7</span></div>
     <div class="detail-row"><span class="detail-key">Toplam Hayvan</span><span class="detail-val" id="ayarlarToplam">—</span></div>
     <div class="detail-row"><span class="detail-key">Geçmiş Kayıt</span><span class="detail-val" id="ayarlarGecmis">—</span></div>
   </div>
@@ -2452,7 +2438,7 @@ function saveVetKayit() {
 }
 
 async function saveVetToFirebase() {
-  if (!currentUser) return;
+  return; // Firebase devre dışı
   try {
     const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
     await setDoc(doc(db, 'vet', currentUser.uid), {
@@ -3113,106 +3099,7 @@ renderDashboard();
 </div>
 
 
-</div> <!-- appScreen -->
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDog1pZixsV_ZcgnMF5LcpTVXtoPOc6Qck",
-  authDomain: "koyun-suru-yonetim.firebaseapp.com",
-  projectId: "koyun-suru-yonetim",
-  storageBucket: "koyun-suru-yonetim.firebasestorage.app",
-  messagingSenderId: "828459519044",
-  appId: "1:828459519044:web:628cd121b4570e66080011"
-};
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-let currentUser = null;
-let firestoreUnsubscribe = null;
-
-async function saveToFirebase() {
-  if (!currentUser) return;
-  try {
-    await setDoc(doc(db, 'users', currentUser.uid), {
-      animals: JSON.parse(JSON.stringify(window.animals)),
-      updatedAt: serverTimestamp()
-    });
-  } catch(e) { console.error('Firebase kayıt hatası:', e); }
-}
-
-function loadFromFirebase() {
-  if (!currentUser) return;
-  if (firestoreUnsubscribe) firestoreUnsubscribe();
-  firestoreUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
-    if (docSnap.exists() && docSnap.data().animals) {
-      window.animals = docSnap.data().animals;
-      localStorage.setItem('ciftlik_animals', JSON.stringify(window.animals));
-      migrateKupeNos();
-      otomatikTurGuncelle();
-      renderDashboard();
-      if (window.currentPage === 'animals') renderAnimals();
-      if (window.currentPage === 'reminders') renderReminders();
-      if (window.currentPage === 'gecmis') renderGecmis();
-      showToast('✓ Senkronize edildi');
-    }
-  });
-}
-
-// save override
-window.saveToFirebase = saveToFirebase;
-const origSave = window.save;
-window.save = function() {
-  localStorage.setItem('ciftlik_animals', JSON.stringify(window.animals));
-  saveToFirebase();
-};
-
-window.googleGiris = function() {
-  const provider = new GoogleAuthProvider();
-  // Önce popup dene, olmezse redirect
-  signInWithPopup(auth, provider).catch(e => {
-    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
-      signInWithRedirect(auth, provider);
-    } else {
-      document.getElementById('loginError').textContent = 'Giriş başarısız: ' + e.message;
-    }
-  });
-};
-
-// Redirect sonucunu kontrol et
-getRedirectResult(auth).then(result => {
-  if (result && result.user) console.log('Redirect ile giriş başarılı');
-}).catch(e => console.error('Redirect hatası:', e));
-
-window.cikisYap = function() {
-  if (firestoreUnsubscribe) firestoreUnsubscribe();
-  signOut(auth);
-};
-
-onAuthStateChanged(auth, user => {
-  currentUser = user;
-  if (user) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    document.getElementById('headerSub').textContent = user.email;
-    // Her girişte ana sayfadan başla
-    window.currentPage = 'dashboard';
-    window.currentAnimalId = null;
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-dashboard').classList.add('active');
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.nav-btn')[0].classList.add('active');
-    document.getElementById('fabBtn').style.display = 'flex';
-    loadFromFirebase();
-  } else {
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('appScreen').style.display = 'none';
-  }
-});
-</script>
 </body></html>
