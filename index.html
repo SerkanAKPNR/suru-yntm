@@ -2,7 +2,7 @@
 <html lang="tr"><head><meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Uygulama! v2026.03.15-v9</title>
+<title>Uygulama! v2026.03.15-v10</title>
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -429,7 +429,7 @@
   <div>
     <h1>🐑 Uygulama!</h1>
     <div class="sub" id="headerSub">Toplam 22 hayvan</div>
-    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v9</div>
+    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v10</div>
   </div>
   <div id="headerRight">
   <button onclick="showPage('ayarlar')" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:0.8rem;cursor:pointer;">⚙️</button>
@@ -819,7 +819,7 @@
   </div>
   <div class="sec-title">Uygulama Hakkında</div>
   <div class="detail-card">
-    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v9</span></div>
+    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v10</span></div>
     <div class="detail-row"><span class="detail-key">Toplam Hayvan</span><span class="detail-val" id="ayarlarToplam">—</span></div>
     <div class="detail-row"><span class="detail-key">Geçmiş Kayıt</span><span class="detail-val" id="ayarlarGecmis">—</span></div>
   </div>
@@ -2865,13 +2865,14 @@ function migrateKupeNos() {
 }
 migrateKupeNos();
 otomatikTurGuncelle();
+currentAnimalId = null;
+showPage('dashboard');
 // Koç hariç hayvanları sil (tek seferlik temizlik)
 if (!localStorage.getItem('ciftlik_cleaned')) {
   animals = animals.filter(a => a.tur === 'koç');
   save();
   localStorage.setItem('ciftlik_cleaned', '1');
 }
-renderDashboard();
 </script>
 
 
