@@ -2,7 +2,7 @@
 <html lang="tr"><head><meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Uygulama! v2026.03.15-v10</title>
+<title>Uygulama! v2026.03.15-v11</title>
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -425,11 +425,26 @@
 <body>
 
 
+<!-- GİRİŞ EKRANI -->
+<div id="loginScreen" style="display:flex;position:fixed;inset:0;background:#0f1209;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:32px;">
+  <div style="font-size:3rem;margin-bottom:16px;">🐑</div>
+  <h1 style="font-size:1.5rem;font-weight:700;color:#c9e86a;margin-bottom:8px;">Uygulama!</h1>
+  <p style="color:#8a9870;font-size:0.85rem;margin-bottom:32px;text-align:center;">Verilerinize her cihazdan erişmek için giriş yapın</p>
+  <div style="width:100%;max-width:300px;">
+    <input id="loginEmail" type="email" placeholder="E-posta" style="width:100%;background:#1a1f10;border:1px solid #2e3a1a;border-radius:8px;padding:12px;color:#e8f0d0;font-size:1rem;margin-bottom:10px;outline:none;">
+    <input id="loginPassword" type="password" placeholder="Şifre (min 6 karakter)" style="width:100%;background:#1a1f10;border:1px solid #2e3a1a;border-radius:8px;padding:12px;color:#e8f0d0;font-size:1rem;margin-bottom:10px;outline:none;">
+    <button onclick="emailGiris()" style="background:#8fbe3c;color:#0f1209;border:none;border-radius:10px;padding:14px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:8px;">Giriş Yap</button>
+    <button onclick="emailKayit()" style="background:none;color:#8fbe3c;border:1px solid #8fbe3c;border-radius:10px;padding:12px;font-size:0.9rem;cursor:pointer;width:100%;">İlk kez? Kayıt Ol</button>
+  </div>
+  <div id="loginError" style="color:#e05a3a;font-size:0.82rem;margin-top:14px;text-align:center;max-width:300px;"></div>
+</div>
+
+<div id="appScreen" style="display:none;">
 <div class="header">
   <div>
     <h1>🐑 Uygulama!</h1>
     <div class="sub" id="headerSub">Toplam 22 hayvan</div>
-    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v10</div>
+    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v11</div>
   </div>
   <div id="headerRight">
   <button onclick="showPage('ayarlar')" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:0.8rem;cursor:pointer;">⚙️</button>
@@ -819,7 +834,7 @@
   </div>
   <div class="sec-title">Uygulama Hakkında</div>
   <div class="detail-card">
-    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v10</span></div>
+    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v11</span></div>
     <div class="detail-row"><span class="detail-key">Toplam Hayvan</span><span class="detail-val" id="ayarlarToplam">—</span></div>
     <div class="detail-row"><span class="detail-key">Geçmiş Kayıt</span><span class="detail-val" id="ayarlarGecmis">—</span></div>
   </div>
@@ -3092,4 +3107,104 @@ if (!localStorage.getItem('ciftlik_cleaned')) {
 
 
 
+</div> <!-- appScreen -->
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCKR0HG5X7HX_lv7z8NgQGDYmRetRPAxO0",
+  authDomain: "suru-yonetim-v10.firebaseapp.com",
+  projectId: "suru-yonetim-v10",
+  storageBucket: "suru-yonetim-v10.firebasestorage.app",
+  messagingSenderId: "172848928341",
+  appId: "1:172848928341:web:86427dd05c7b1cfa2ce6dc"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let currentUser = null;
+let unsubscribe = null;
+
+// Firebase'e kaydet
+async function saveToFirebase() {
+  if (!currentUser) return;
+  try {
+    await setDoc(doc(db, 'users', currentUser.uid), {
+      animals: JSON.parse(JSON.stringify(window.animals)),
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e) { console.error('Kayıt hatası:', e); }
+}
+
+// Firebase'den dinle
+function startListening() {
+  if (unsubscribe) unsubscribe();
+  unsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
+    if (snap.exists() && snap.data().animals) {
+      window.animals = snap.data().animals;
+      localStorage.setItem('ciftlik_animals', JSON.stringify(window.animals));
+      migrateKupeNos();
+      otomatikTurGuncelle();
+      if (window.currentPage === 'detail') showPage('dashboard');
+      else {
+        renderDashboard();
+        if (window.currentPage === 'animals') renderAnimals();
+      }
+    }
+  });
+}
+
+// save override
+window.save = function() {
+  localStorage.setItem('ciftlik_animals', JSON.stringify(window.animals));
+  saveToFirebase();
+};
+
+// Giriş/Kayıt fonksiyonları
+window.emailGiris = function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const err = document.getElementById('loginError');
+  if (!email || !pass) { err.textContent = 'E-posta ve şifre gerekli!'; return; }
+  err.textContent = 'Giriş yapılıyor...';
+  signInWithEmailAndPassword(auth, email, pass)
+    .catch(e => { err.textContent = e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential' ? 'E-posta veya şifre yanlış!' : e.message; });
+};
+
+window.emailKayit = function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const err = document.getElementById('loginError');
+  if (!email || !pass) { err.textContent = 'E-posta ve şifre gerekli!'; return; }
+  if (pass.length < 6) { err.textContent = 'Şifre en az 6 karakter olmalı!'; return; }
+  err.textContent = 'Kayıt yapılıyor...';
+  createUserWithEmailAndPassword(auth, email, pass)
+    .catch(e => { err.textContent = e.message; });
+};
+
+window.cikisYap = function() {
+  if (unsubscribe) unsubscribe();
+  signOut(auth);
+};
+
+// Auth durumu
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  if (user) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('headerSub').textContent = user.email;
+    startListening();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+    if (unsubscribe) unsubscribe();
+  }
+});
+</script>
 </body></html>
