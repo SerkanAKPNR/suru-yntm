@@ -2,7 +2,7 @@
 <html lang="tr"><head><meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Uygulama! v2026.03.15-v12</title>
+<title>Uygulama! v2026.03.15-v13</title>
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -444,7 +444,7 @@
   <div>
     <h1>🐑 Uygulama!</h1>
     <div class="sub" id="headerSub">Toplam 22 hayvan</div>
-    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v12</div>
+    <div style="font-size:0.65rem;color:var(--text2);font-family:&#39;JetBrains Mono&#39;,monospace;">v2026.03.15-v13</div>
   </div>
   <div id="headerRight">
   <button onclick="showPage('ayarlar')" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:0.8rem;cursor:pointer;">⚙️</button>
@@ -834,7 +834,7 @@
   </div>
   <div class="sec-title">Uygulama Hakkında</div>
   <div class="detail-card">
-    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v12</span></div>
+    <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v13</span></div>
     <div class="detail-row"><span class="detail-key">Toplam Hayvan</span><span class="detail-val" id="ayarlarToplam">—</span></div>
     <div class="detail-row"><span class="detail-key">Geçmiş Kayıt</span><span class="detail-val" id="ayarlarGecmis">—</span></div>
   </div>
@@ -882,7 +882,8 @@
       <button onclick="suruHepsiniSec(false)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 12px;color:var(--text2);font-size:0.72rem;cursor:pointer;font-family:'JetBrains Mono',monospace;">Temizle</button>
     </div>
     <div id="suruList" style="max-height:250px;overflow-y:auto;margin-bottom:10px;"></div>
-    <button class="btn" style="width:100%;padding:13px;" onclick="suruUygula()">💉 Seçilenlere Uygula</button>
+    <button class="btn" style="width:100%;padding:13px;" onclick="suruUygula()">💉 Seçili Hayvanlara Uygula</button>
+    <button class="btn btn-outline" style="width:100%;padding:13px;margin-top:8px;" onclick="suruGrubaUygula()">⚡ Tüm Gruba Direkt Uygula</button>
     <div id="suruResult" style="margin-top:8px;font-size:0.8rem;font-family:'JetBrains Mono',monospace;display:none;"></div>
   </div>
 </div>
@@ -898,11 +899,16 @@
     <div id="vetPinHata" style="color:var(--danger);font-size:0.8rem;margin-top:8px;"></div>
   </div>
   <div id="vetPanel" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div class="sec-title" style="margin:0;">Tedavi Kayıtları</div>
       <button onclick="vetCikis()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text2);font-size:0.72rem;cursor:pointer;">Çıkış</button>
     </div>
-    <button class="btn" style="width:100%;margin-bottom:14px;" onclick="openVetModal()">+ Yeni Tedavi Kaydı</button>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn" style="flex:1;" onclick="openVetModal()">+ Yeni Kayıt</button>
+      <select class="form-select" id="vetHayvanFilter" style="flex:1;" onchange="renderVetKayitlar()">
+        <option value="">Tüm Hayvanlar</option>
+      </select>
+    </div>
     <div id="vetKayitList"></div>
   </div>
 </div>
@@ -1227,10 +1233,10 @@ function renderDashboard() {
   const kuzu = animals.filter(a => a.tur === 'kuzu' && (!a.durum || a.durum === 'hayatta')).length;
   const oldu = animals.filter(a => a.durum && a.durum !== 'hayatta').length;
   document.getElementById('statsGrid').innerHTML = `
-    <div class="stat-card"><div class="stat-num" style="color:var(--koç)">${koç}</div><div class="stat-label">Koç</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--koyun)">${koyun}</div><div class="stat-label">Koyun</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--kuzu)">${kuzu}</div><div class="stat-label">Kuzu</div></div>
-    <div class="stat-card" style="border-color:var(--border);"><div class="stat-num" style="color:var(--text)">${koç+koyun+kuzu}</div><div class="stat-label">Toplam</div></div>
+    <div class="stat-card" style="cursor:pointer;" onclick="filterAndShow('koç')"><div class="stat-num" style="color:var(--koç)">${koç}</div><div class="stat-label">Koç</div></div>
+    <div class="stat-card" style="cursor:pointer;" onclick="filterAndShow('koyun')"><div class="stat-num" style="color:var(--koyun)">${koyun}</div><div class="stat-label">Koyun</div></div>
+    <div class="stat-card" style="cursor:pointer;" onclick="filterAndShow('kuzu')"><div class="stat-num" style="color:var(--kuzu)">${kuzu}</div><div class="stat-label">Kuzu</div></div>
+    <div class="stat-card" style="cursor:pointer;border-color:var(--border);" onclick="filterAndShow('hepsi')"><div class="stat-num" style="color:var(--text)">${koç+koyun+kuzu}</div><div class="stat-label">Toplam</div></div>
   `;
   document.getElementById('headerSub').textContent = `Toplam ${animals.length} hayvan`;
 
@@ -1520,6 +1526,23 @@ function renderDetail() {
       </div>`).join('')}
   </div>`;
 
+  // Vet kayıtları butonu
+  const hayvanVetKayitlar = (window.vetKayitlar||[]).filter(k => k.hayvan === (a.kupe||a.isim));
+  html += `<div class="detail-card" style="margin-bottom:8px;">
+    <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>🩺 Tedavi Geçmişi</span>
+      <button class="btn btn-sm btn-outline" onclick="openVetModalForAnimal('${a.kupe||a.isim}')">+ Ekle</button>
+    </div>
+    ${hayvanVetKayitlar.length === 0 ? '<div style="color:var(--text2);font-size:0.85rem;">Kayıt yok</div>' :
+      hayvanVetKayitlar.map(k => `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-weight:600;">${k.tani}</span>
+          <span style="font-size:0.72rem;color:var(--text2);">${k.tarih}</span>
+        </div>
+        ${k.tedavi ? `<div style="color:var(--text2);font-size:0.8rem;">${k.tedavi}</div>` : ''}
+      </div>`).join('')}
+  </div>`;
+
   // Not
   html += `<div class="detail-card">
     <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1752,6 +1775,12 @@ function hesaplaIrk(irk, anneIrk, babaIrk) {
 }
 
 
+
+
+function filterAndShow(tur) {
+  currentFilter = tur;
+  showPage('animals');
+}
 
 // ===== HAYVAN NAVİGASYONU =====
 function getFilteredAnimalList() {
@@ -2348,6 +2377,36 @@ function renderSuruList() {
     </label>`).join('');
 }
 
+
+function suruGrubaUygula() {
+  const isim = document.getElementById('suru_isim').value.trim();
+  const tarih = document.getElementById('suru_tarih').value;
+  if (!isim || !tarih) { showToast('Aşı/ilaç adı ve tarih gerekli!'); return; }
+  
+  const grup = document.getElementById('suru_grup').value;
+  const periyot = document.getElementById('suru_periyot').value;
+  const not = document.getElementById('suru_not').value.trim();
+  
+  let list = animals.filter(a => !a.durum || a.durum === 'hayatta');
+  if (grup !== 'hepsi') list = list.filter(a => a.tur === grup);
+  
+  if (list.length === 0) { showToast('Bu grupta hayvan yok!'); return; }
+  
+  const grupAdi = grup === 'hepsi' ? 'tüm hayvanlar' : grup + 'lar';
+  if (!confirm(`${list.length} ${grupAdi}a ${isim} uygulanacak. Emin misiniz?`)) return;
+  
+  list.forEach(a => {
+    if (!a.vaccines) a.vaccines = [];
+    a.vaccines.push({ isim, tarih, periyot, not });
+  });
+  
+  save();
+  showToast(`✓ ${list.length} hayvana ${isim} uygulandı!`);
+  document.getElementById('suru_isim').value = '';
+  document.getElementById('suru_periyot').value = '';
+  document.getElementById('suru_not').value = '';
+}
+
 function suruHepsiniSec(sec) {
   document.querySelectorAll('.suru_check').forEach(cb => cb.checked = sec);
 }
@@ -2459,23 +2518,71 @@ function renderVetKayitlar() {
   const sonucRenk = { iyilesti: 'var(--accent)', devam: 'var(--warn)', takip: 'var(--text2)', kotu: 'var(--danger)' };
   const sonucLabel = { iyilesti: '✓ İyileşti', devam: '⏳ Devam', takip: '👁 Takip', kotu: '⚠️ Kötüleşti' };
   
+  // Hayvan filtresi dropdown güncelle
+  const sel = document.getElementById('vetHayvanFilter');
+  if (sel) {
+    const mevcut = sel.value;
+    const hayvanlar = [...new Set((window.vetKayitlar||[]).map(k => k.hayvan))];
+    sel.innerHTML = '<option value="">Tüm Hayvanlar</option>' + hayvanlar.map(h => `<option value="${h}" ${h===mevcut?'selected':''}>${h}</option>`).join('');
+  }
+  
+  const filtre = sel ? sel.value : '';
+  let kayitlar = [...(window.vetKayitlar||[])].reverse();
+  if (filtre) kayitlar = kayitlar.filter(k => k.hayvan === filtre);
+  
   const el = document.getElementById('vetKayitList');
-  if (!window.vetKayitlar.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">🩺</div><div class="empty-text">Henüz kayıt yok</div></div>';
+  if (!kayitlar.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🩺</div><div class="empty-text">Kayıt yok</div></div>';
     return;
   }
   
-  el.innerHTML = [...window.vetKayitlar].reverse().map(k => `
+  el.innerHTML = kayitlar.map((k,i) => `
     <div class="detail-card" style="margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-        <span style="font-weight:700;">${k.hayvan}</span>
-        <span style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:${sonucRenk[k.sonuc]||'var(--text2)'};">${sonucLabel[k.sonuc]||k.sonuc}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:700;cursor:pointer;color:var(--accent)" onclick="vetHayvanAc('${k.hayvan}')">${k.hayvan}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:${sonucRenk[k.sonuc]||'var(--text2)'};">${sonucLabel[k.sonuc]||k.sonuc}</span>
+          <button onclick="vetKayitSil(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.8rem;">sil</button>
+        </div>
       </div>
       <div style="font-size:0.85rem;margin-bottom:4px;"><span style="color:var(--text2);">Tanı: </span>${k.tani}</div>
       ${k.tedavi ? `<div style="font-size:0.85rem;margin-bottom:4px;"><span style="color:var(--text2);">Tedavi: </span>${k.tedavi}</div>` : ''}
       ${k.not ? `<div style="font-size:0.82rem;color:var(--text2);margin-bottom:4px;">${k.not}</div>` : ''}
       <div style="font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-top:6px;">${k.tarih} • ${k.olusturma||''}</div>
     </div>`).join('');
+}
+
+
+function openVetModalForAnimal(hayvanId) {
+  if (!vetGirisYapildi) {
+    showToast('Önce Vet modülüne giriş yapın!');
+    showPage('vet');
+    return;
+  }
+  document.getElementById('vet_hayvan').value = hayvanId;
+  document.getElementById('vet_tarih').value = today();
+  document.getElementById('vetModal').classList.add('open');
+}
+
+function vetHayvanAc(hayvanAdi) {
+  // Küpe no veya isimle hayvanı bul ve kartını aç
+  const a = animals.find(x => x.kupe === hayvanAdi || x.isim === hayvanAdi);
+  if (a) {
+    currentAnimalId = a.id;
+    showPage('detail');
+  } else {
+    showToast('Hayvan bulunamadı');
+  }
+}
+
+function vetKayitSil(idx) {
+  const kayitlar = [...window.vetKayitlar].reverse();
+  const gercekIdx = window.vetKayitlar.length - 1 - idx;
+  if (!confirm('Bu kayıt silinsin mi?')) return;
+  window.vetKayitlar.splice(gercekIdx, 1);
+  localStorage.setItem('vet_kayitlar', JSON.stringify(window.vetKayitlar));
+  renderVetKayitlar();
+  showToast('Kayıt silindi');
 }
 
 // ===== AYARLAR & DIŞA AKTAR =====
@@ -2882,6 +2989,8 @@ function migrateKupeNos() {
 }
 migrateKupeNos();
 otomatikTurGuncelle();
+currentAnimalId = null;
+showPage('dashboard');
 currentAnimalId = null;
 showPage('dashboard');
 // Koç hariç hayvanları sil (tek seferlik temizlik)
