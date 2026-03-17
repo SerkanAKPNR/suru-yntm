@@ -420,6 +420,49 @@
   .animal-card { touch-action: manipulation; cursor: grab; }
   .animal-card:active { cursor: grabbing; }
 
+  /* Bildirim Popup */
+  .bildirim-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .bildirim-overlay.open { display: flex; }
+  .bildirim-box {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    width: 100%;
+    max-width: 380px;
+    padding: 20px;
+    animation: slideUp 0.3s ease;
+  }
+  .bildirim-baslik {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bildirim-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .bildirim-item:last-child { border-bottom: none; }
+  .bildirim-item-sol { flex: 1; }
+  .bildirim-item-isim { font-weight: 600; font-size: 0.95rem; }
+  .bildirim-item-gun { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
   /* Autocomplete */
   .autocomplete-wrap { position: relative; }
   .autocomplete-list {
@@ -1172,6 +1215,18 @@
   </div>
 </div>
 
+<!-- BİLDİRİM POPUP -->
+<div class="bildirim-overlay" id="bildirimPopup">
+  <div class="bildirim-box">
+    <div class="bildirim-baslik">🔔 Yaklaşan Uygulamalar</div>
+    <div id="bildirimListe"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn" style="flex:1;" onclick="bildirimOkundu()">✓ Tamam, Gördüm</button>
+      <button class="btn btn-outline" style="flex:1;" onclick="closeBildirim()">Kapat</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast">Kaydedildi ✓</div>
 
 <script>
@@ -1742,6 +1797,41 @@ function deleteAnimal(id) {
 function deleteVaccine(animalId, idx) {
   const a = animals.find(x => x.id === animalId);
   if (!a) return;
+  const v = a.vaccines[idx];
+  if (!v) return;
+
+  // Aynı isim + aynı tarihte kaç hayvana uygulanmış?
+  const benzerler = animals.filter(x => 
+    (x.vaccines||[]).some(vv => vv.isim === v.isim && vv.tarih === v.tarih)
+  );
+
+  if (benzerler.length > 1) {
+    // Toplu silme onayı
+    const onay = confirm(`"${v.isim}" aşısı ${v.tarih} tarihinde ${benzerler.length} hayvana uygulanmış.\n\nSadece bu hayvandan mı silinsin, yoksa tüm ${benzerler.length} hayvandan mı?`);
+    if (onay) {
+      // Hepsinden sil
+      benzerler.forEach(x => {
+        x.vaccines = (x.vaccines||[]).filter(vv => !(vv.isim === v.isim && vv.tarih === v.tarih));
+      });
+      // Sürü takviminden de sil
+      const suruList = getSuruTakvimi().filter(x => x.isim.toLowerCase() !== v.isim.toLowerCase());
+      saveSuruTakvimi(suruList);
+      save();
+      renderDetail();
+      renderDashboard();
+      showToast(`${benzerler.length} hayvandan "${v.isim}" silindi ✓`);
+      return;
+    } else {
+      // Sadece bu hayvandan sil
+      a.vaccines.splice(idx, 1);
+      save();
+      renderDetail();
+      showToast('Kayıt silindi');
+      return;
+    }
+  }
+
+  // Tek hayvanda varsa direkt sil
   a.vaccines.splice(idx, 1);
   save();
   renderDetail();
@@ -2775,7 +2865,7 @@ function renderTakvimGrid() {
     const tooltipTitle = noktalar.map(n => n.isim).join(', ');
     html += `<div title="${tooltipTitle}" style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;background:${bugunku ? 'rgba(143,190,60,0.15)' : 'none'};border:${bugunku ? '1px solid var(--accent)' : '1px solid transparent'};">
       <span style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:${bugunku ? 'var(--accent2)' : 'var(--text)'};">${g}</span>
-      ${noktalar.length ? `<div style="display:flex;gap:2px;margin-top:2px;flex-wrap:wrap;justify-content:center;">${noktalar.slice(0,3).map(n => `<div style="width:5px;height:5px;border-radius:50%;background:${n.renk};"></div>`).join('')}</div>` : ''}
+      ${noktalar.length ? `<div style="display:flex;gap:2px;margin-top:2px;flex-wrap:wrap;justify-content:center;">${noktalar.slice(0,3).map(n => `<div style="width:8px;height:8px;border-radius:50%;background:${n.renk};box-shadow:0 0 4px ${n.renk};"></div>`).join('')}</div>` : ''}
     </div>`;
   }
   document.getElementById('takvimGrid').innerHTML = html;
@@ -2820,6 +2910,87 @@ function renderTakvimListe() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ===== BİLDİRİM POPUP =====
+function bildirimKontrol() {
+  const bugun = today();
+  const okundu = JSON.parse(localStorage.getItem('bildirim_okundu') || '{}');
+  
+  // 3 gün içindeki sürü takvimi uyarıları
+  const uyarilar = [];
+  getSuruTakvimi().forEach(item => {
+    const nd = takvimSonrakiTarih(item);
+    if (!nd) return;
+    const days = daysUntil(nd);
+    if (days <= 3) {
+      // Bugün okundu olarak işaretlenmişse gösterme
+      const key = item.id + '_' + bugun;
+      if (!okundu[key]) {
+        uyarilar.push({ item, days, nd });
+      }
+    }
+  });
+
+  // Hayvan bazlı aşılar (3 gün içinde)
+  animals.forEach(a => {
+    (a.vaccines||[]).forEach(v => {
+      const nd = nextVaccineDate(v);
+      if (!nd) return;
+      const days = daysUntil(nd);
+      if (days <= 3 && days >= 0) {
+        const key = a.id + '_' + v.isim + '_' + nd + '_' + bugun;
+        if (!okundu[key]) {
+          uyarilar.push({ animal: a, vaccine: v, days, nd, key });
+        }
+      }
+    });
+  });
+
+  if (uyarilar.length === 0) return;
+
+  // Popup içeriğini oluştur
+  const liste = document.getElementById('bildirimListe');
+  liste.innerHTML = uyarilar.map(u => {
+    const durumRenk = u.days < 0 ? 'var(--danger)' : u.days === 0 ? 'var(--danger)' : u.days <= 1 ? 'var(--warn)' : 'var(--accent)';
+    const label = u.days < 0 ? `${Math.abs(u.days)} gün gecikti!` : u.days === 0 ? 'Bugün!' : `${u.days} gün kaldı`;
+    const isim = u.item ? `🐑 ${u.item.isim} (Sürü)` : `${u.animal.isim || u.animal.kupe} — ${u.vaccine.isim}`;
+    return `<div class="bildirim-item">
+      <div class="bildirim-item-sol">
+        <div class="bildirim-item-isim">${isim}</div>
+        <div class="bildirim-item-gun" style="color:${durumRenk};">${label} • ${u.nd}</div>
+      </div>
+      <div style="width:10px;height:10px;border-radius:50%;background:${durumRenk};flex-shrink:0;box-shadow:0 0 6px ${durumRenk};"></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('bildirimPopup').classList.add('open');
+  // Uyarı listesini sakla (okundu için)
+  document.getElementById('bildirimPopup')._uyarilar = uyarilar;
+}
+
+function bildirimOkundu() {
+  const uyarilar = document.getElementById('bildirimPopup')._uyarilar || [];
+  const okundu = JSON.parse(localStorage.getItem('bildirim_okundu') || '{}');
+  const bugun = today();
+  uyarilar.forEach(u => {
+    const key = u.item ? u.item.id + '_' + bugun : u.key;
+    okundu[key] = true;
+  });
+  // Eski kayıtları temizle (30 günden eski)
+  const otuzGunOnce = new Date();
+  otuzGunOnce.setDate(otuzGunOnce.getDate() - 30);
+  Object.keys(okundu).forEach(k => {
+    const tarihPart = k.split('_').pop();
+    if (tarihPart && new Date(tarihPart) < otuzGunOnce) delete okundu[k];
+  });
+  localStorage.setItem('bildirim_okundu', JSON.stringify(okundu));
+  closeBildirim();
+  showToast('Bildirimler okundu olarak işaretlendi ✓');
+}
+
+function closeBildirim() {
+  document.getElementById('bildirimPopup').classList.remove('open');
 }
 
 // ===== AŞI ADI AUTOCOMPLETE =====
@@ -2893,6 +3064,8 @@ migrateKupeNos();
 otomatikTurGuncelle();
 currentAnimalId = null;
 showPage('dashboard');
+// Bildirim kontrolü — uygulama açılışında
+setTimeout(() => bildirimKontrol(), 1000);
 </script>
 
 </div> <!-- appScreen -->
