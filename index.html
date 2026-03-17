@@ -1522,21 +1522,39 @@ function renderDetail() {
 
   const dogumlar = a.dogumlar || [];
   if (a.tur === 'koyun' || a.tur === 'koç') {
-    const toplamYavru = dogumlar.reduce((s, d) => s + d.sayi, 0);
+    // anneId ile bağlı kuzuları da say
+    const anneIdKuzular = animals.filter(x => x.anneId === a.id);
+    
+    // dogumlar dizisinden toplam
+    const kayitliYavru = dogumlar.reduce((s, d) => s + d.sayi, 0);
     const tekDogum = dogumlar.filter(d => d.sayi === 1).length;
     const ikizDogum = dogumlar.filter(d => d.sayi === 2).length;
     const ucuzDogum = dogumlar.filter(d => d.sayi === 3).length;
+
+    // Eğer dogumlar boşsa ama anneId'li kuzular varsa onları göster
+    const gercekToplamYavru = kayitliYavru > 0 ? kayitliYavru : anneIdKuzular.length;
+    const gercekToplamDogum = dogumlar.length > 0 ? dogumlar.length : (anneIdKuzular.length > 0 ? '?' : 0);
+    const otoNot = kayitliYavru === 0 && anneIdKuzular.length > 0;
+
     html += `<div class="detail-card">
       <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
         <span>Doğum Geçmişi</span>
         <button class="btn btn-sm btn-outline" onclick="openBirthModal('${a.id}')">+ Ekle</button>
       </div>
-      <div class="detail-row"><span class="detail-key">Toplam Doğum</span><span class="detail-val">${dogumlar.length}</span></div>
-      <div class="detail-row"><span class="detail-key">Toplam Yavru</span><span class="detail-val">${toplamYavru}</span></div>
+      <div class="detail-row"><span class="detail-key">Toplam Doğum</span><span class="detail-val">${gercekToplamDogum}</span></div>
+      <div class="detail-row"><span class="detail-key">Toplam Yavru</span><span class="detail-val">${gercekToplamYavru}</span></div>
       ${tekDogum ? `<div class="detail-row"><span class="detail-key">Tek Doğum</span><span class="detail-val">${tekDogum}</span></div>` : ''}
       ${ikizDogum ? `<div class="detail-row"><span class="detail-key">İkiz Doğum</span><span class="detail-val">${ikizDogum}</span></div>` : ''}
       ${ucuzDogum ? `<div class="detail-row"><span class="detail-key">Üçüz Doğum</span><span class="detail-val">${ucuzDogum}</span></div>` : ''}
-      ${dogumlar.length === 0 ? '<div style="color:var(--text2);font-size:0.85rem;padding:6px 0;">Kayıt yok</div>' : dogumlar.map((d, i) => {
+      ${otoNot ? `<div style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:var(--warn);padding:6px 0;">⚠️ Doğum kaydı girilmemiş, kuzular anne bağlantısından hesaplandı</div>` : ''}
+      ${dogumlar.length === 0 && anneIdKuzular.length > 0 ? 
+        anneIdKuzular.map(k => `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="cursor:pointer;color:var(--accent);" onclick="openDetail('${k.id}')">${k.isim || k.kupe}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--text2);">${k.dogumTarihi || '—'}</span>
+          </div>
+        </div>`).join('') 
+        : dogumlar.map((d, i) => {
         const tip = d.sayi === 1 ? 'Tek' : d.sayi === 2 ? 'İkiz' : 'Üçüz';
         return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -2812,7 +2830,24 @@ function takvimIcsIndir(itemStr) {
   showToast('📅 Takvim dosyası indirildi!');
 }
 
-function takvimAyDegistir(yon) {
+function takvimGunDetay(e, isimler) {
+  if (!isimler) return;
+  e.stopPropagation();
+  // Küçük tooltip göster
+  const mevcutTip = document.getElementById('takvimTip');
+  if (mevcutTip) mevcutTip.remove();
+  const tip = document.createElement('div');
+  tip.id = 'takvimTip';
+  tip.style.cssText = `position:fixed;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-size:0.78rem;font-family:'JetBrains Mono',monospace;color:var(--text);z-index:9999;max-width:200px;box-shadow:0 4px 12px rgba(0,0,0,0.4);`;
+  tip.innerHTML = isimler.split(', ').map(s => `<div style="padding:2px 0;">💉 ${s}</div>`).join('');
+  tip.style.left = Math.min(e.clientX, window.innerWidth - 220) + 'px';
+  tip.style.top = (e.clientY - 10) + 'px';
+  document.body.appendChild(tip);
+  setTimeout(() => { if (document.getElementById('takvimTip')) document.getElementById('takvimTip').remove(); }, 3000);
+  document.addEventListener('click', () => { if (document.getElementById('takvimTip')) document.getElementById('takvimTip').remove(); }, { once: true });
+}
+
+
   takvimAy += yon;
   if (takvimAy > 11) { takvimAy = 0; takvimYil++; }
   if (takvimAy < 0) { takvimAy = 11; takvimYil--; }
@@ -2863,9 +2898,9 @@ function renderTakvimGrid() {
     const bugunku = bugun.getDate() === g && bugun.getMonth() === takvimAy && bugun.getFullYear() === takvimYil;
     const noktalar = onemliGunler[g] || [];
     const tooltipTitle = noktalar.map(n => n.isim).join(', ');
-    html += `<div title="${tooltipTitle}" style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;background:${bugunku ? 'rgba(143,190,60,0.15)' : 'none'};border:${bugunku ? '1px solid var(--accent)' : '1px solid transparent'};">
+    html += `<div title="${tooltipTitle}" onclick="takvimGunDetay(event,'${tooltipTitle}')" style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;background:${bugunku ? 'rgba(143,190,60,0.15)' : 'none'};border:${bugunku ? '1px solid var(--accent)' : '1px solid transparent'};cursor:${noktalar.length?'pointer':'default'};">
       <span style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:${bugunku ? 'var(--accent2)' : 'var(--text)'};">${g}</span>
-      ${noktalar.length ? `<div style="display:flex;gap:2px;margin-top:2px;flex-wrap:wrap;justify-content:center;">${noktalar.slice(0,3).map(n => `<div style="width:8px;height:8px;border-radius:50%;background:${n.renk};box-shadow:0 0 4px ${n.renk};"></div>`).join('')}</div>` : ''}
+      ${noktalar.length ? `<div style="display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;justify-content:center;">${noktalar.slice(0,3).map(n => `<div style="width:11px;height:11px;border-radius:50%;background:${n.renk};box-shadow:0 0 5px ${n.renk};"></div>`).join('')}</div>` : ''}
     </div>`;
   }
   document.getElementById('takvimGrid').innerHTML = html;
