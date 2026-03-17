@@ -420,6 +420,33 @@
   .animal-card { touch-action: manipulation; cursor: grab; }
   .animal-card:active { cursor: grabbing; }
 
+  /* Autocomplete */
+  .autocomplete-wrap { position: relative; }
+  .autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    z-index: 999;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .autocomplete-item {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Crimson Pro', serif;
+  }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: rgba(143,190,60,0.1); color: var(--text); }
+  .autocomplete-item strong { color: var(--accent2); }
+
   /* Takvim grid */
   .takvim-gun {
     aspect-ratio: 1;
@@ -519,7 +546,10 @@
       <button onclick="topluAsiHepsiniSec(true)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text2);font-size:0.72rem;cursor:pointer;font-family:'JetBrains Mono',monospace;">Tümünü Seç</button>
       <button onclick="topluAsiHepsiniSec(false)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text2);font-size:0.72rem;cursor:pointer;font-family:'JetBrains Mono',monospace;">Temizle</button>
     </div>
-    <input class="form-input" id="ta_isim" placeholder="Aşı / İlaç adı (Şap, Brucella...)" style="margin-bottom:8px;">
+    <div class="autocomplete-wrap" style="margin-bottom:8px;">
+      <input class="form-input" id="ta_isim" placeholder="Aşı / İlaç adı (Şap, Brucella...)" oninput="showAutocomplete(this,'ta_ac')" onblur="setTimeout(()=>hideAutocomplete('ta_ac'),200)" autocomplete="off">
+      <div class="autocomplete-list" id="ta_ac" style="display:none;"></div>
+    </div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <input class="form-input" id="ta_tarih" type="date" style="flex:1;">
       <input class="form-input" id="ta_periyot" type="number" placeholder="Periyot (gün)" style="flex:1;">
@@ -605,7 +635,10 @@
     </div>
     <div class="form-group">
       <label class="form-label">Aşı / İlaç / Vitamin Adı *</label>
-      <input class="form-input" id="suru_isim" placeholder="Şap, Brucella, Vitamin B12...">
+      <div class="autocomplete-wrap">
+        <input class="form-input" id="suru_isim" placeholder="Şap, Brucella, Vitamin B12..." oninput="showAutocomplete(this,'suru_ac')" onblur="setTimeout(()=>hideAutocomplete('suru_ac'),200)" autocomplete="off">
+        <div class="autocomplete-list" id="suru_ac" style="display:none;"></div>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -855,7 +888,10 @@
     <div class="modal-title">Aşı / İlaç Ekle</div>
     <div class="form-group">
       <label class="form-label">Aşı / İlaç Adı</label>
-      <input class="form-input" id="v_isim" placeholder="Şap, Brucella...">
+      <div class="autocomplete-wrap">
+        <input class="form-input" id="v_isim" placeholder="Şap, Brucella..." oninput="showAutocomplete(this,'v_ac')" onblur="setTimeout(()=>hideAutocomplete('v_ac'),200)" autocomplete="off">
+        <div class="autocomplete-list" id="v_ac" style="display:none;"></div>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -2094,20 +2130,13 @@ function executeTopluAsi() {
     if (!a.vaccines) a.vaccines = [];
     a.vaccines.push({ isim, tarih, periyot, not });
   });
-  // Sürü takviminde aynı isimli kayıt varsa güncelle
-  const suruList = getSuruTakvimi();
-  const suruIdx = suruList.findIndex(x => x.isim.toLowerCase() === isim.toLowerCase());
-  if (suruIdx !== -1) {
-    suruList[suruIdx].sonTarih = tarih;
-    saveSuruTakvimi(suruList);
-    showToast(secilen.length + ' hayvana ' + isim + ' uygulandı ✓ (Sürü takvimi güncellendi)');
-  } else {
-    showToast(secilen.length + ' hayvana ' + isim + ' uygulandı ✓');
-  }
+  // Sürü takvimini otomatik güncelle/ekle
+  takvimeOtoEkleGuncelle(isim, tarih, periyot ? parseInt(periyot) : 180);
   save();
   topluAsiAcik = false;
   document.getElementById('topluAsiPanel').style.display = 'none';
   document.getElementById('topluAsiBtn').style.background = '';
+  showToast(secilen.length + ' hayvana ' + isim + ' uygulandı ✓');
   renderAnimals();
 }
 
@@ -2208,19 +2237,12 @@ function suruGrubaUygula() {
     a.vaccines.push({ isim, tarih, periyot, not });
   });
   // Sürü takvimini güncelle
-  const suruList = getSuruTakvimi();
-  const suruIdx = suruList.findIndex(x => x.isim.toLowerCase() === isim.toLowerCase());
-  if (suruIdx !== -1) {
-    suruList[suruIdx].sonTarih = tarih;
-    saveSuruTakvimi(suruList);
-    showToast(`✓ ${list.length} hayvana ${isim} uygulandı! (Sürü takvimi güncellendi)`);
-  } else {
-    showToast(`✓ ${list.length} hayvana ${isim} uygulandı!`);
-  }
+  takvimeOtoEkleGuncelle(isim, tarih, periyot ? parseInt(periyot) : 180);
   save();
   document.getElementById('suru_isim').value = '';
   document.getElementById('suru_periyot').value = '';
   document.getElementById('suru_not').value = '';
+  showToast(`✓ ${list.length} hayvana ${isim} uygulandı!`);
 }
 
 function suruHepsiniSec(sec) { document.querySelectorAll('.suru_check').forEach(cb => cb.checked = sec); }
@@ -2241,9 +2263,7 @@ function suruUygula() {
     a.vaccines.push({ isim, tarih, periyot, not });
   });
   // Sürü takvimini güncelle
-  const suruList = getSuruTakvimi();
-  const suruIdx = suruList.findIndex(x => x.isim.toLowerCase() === isim.toLowerCase());
-  if (suruIdx !== -1) { suruList[suruIdx].sonTarih = tarih; saveSuruTakvimi(suruList); }
+  takvimeOtoEkleGuncelle(isim, tarih, periyot ? parseInt(periyot) : 180);
   save();
   const result = document.getElementById('suruResult');
   result.style.display = 'block';
@@ -2800,6 +2820,65 @@ function renderTakvimListe() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ===== AŞI ADI AUTOCOMPLETE =====
+function getAsiIsimleri() {
+  const isimler = new Set();
+  // Hayvan aşılarından topla
+  animals.forEach(a => (a.vaccines||[]).forEach(v => { if(v.isim) isimler.add(v.isim); }));
+  // Sürü takviminden topla
+  getSuruTakvimi().forEach(item => { if(item.isim) isimler.add(item.isim); });
+  return [...isimler].sort();
+}
+
+function showAutocomplete(input, listId) {
+  const val = input.value.trim().toLowerCase();
+  const list = document.getElementById(listId);
+  if (!val) { list.style.display = 'none'; return; }
+  const isimler = getAsiIsimleri().filter(x => x.toLowerCase().includes(val));
+  if (isimler.length === 0) { list.style.display = 'none'; return; }
+  list.innerHTML = isimler.map(isim => {
+    const idx = isim.toLowerCase().indexOf(val);
+    const highlighted = isim.slice(0,idx) + '<strong>' + isim.slice(idx, idx+val.length) + '</strong>' + isim.slice(idx+val.length);
+    return `<div class="autocomplete-item" onmousedown="secAutocomplete('${input.id}','${listId}','${isim.replace(/'/g,"\\'")}')"> ${highlighted}</div>`;
+  }).join('');
+  list.style.display = 'block';
+}
+
+function secAutocomplete(inputId, listId, deger) {
+  document.getElementById(inputId).value = deger;
+  hideAutocomplete(listId);
+}
+
+function hideAutocomplete(listId) {
+  const el = document.getElementById(listId);
+  if (el) el.style.display = 'none';
+}
+
+// ===== TOPLU AŞI → TAKVİM OTO ENTEGRASYON =====
+function takvimeOtoEkleGuncelle(isim, tarih, periyot) {
+  if (!isim || !tarih) return;
+  const list = getSuruTakvimi();
+  const idx = list.findIndex(x => x.isim.toLowerCase() === isim.toLowerCase());
+  if (idx !== -1) {
+    // Mevcut kaydı güncelle
+    list[idx].sonTarih = tarih;
+    saveSuruTakvimi(list);
+  } else {
+    // Yeni kayıt oluştur
+    list.push({
+      id: genId(),
+      isim,
+      sonTarih: tarih,
+      periyot: periyot || 180,
+      not: '',
+      olusturma: today(),
+      otoEklendi: true
+    });
+    saveSuruTakvimi(list);
+    showToast(`✓ "${isim}" sürü takvimine eklendi!`);
+  }
 }
 
 // ===== INIT =====
