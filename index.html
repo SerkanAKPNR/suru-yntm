@@ -2742,6 +2742,7 @@ function getSuruTakvimi() {
 }
 function saveSuruTakvimi(data) {
   localStorage.setItem('suru_takvim', JSON.stringify(data));
+  if (window._firebaseSaveTakvim) window._firebaseSaveTakvim(data);
 }
 
 function openTakvimModal(id) {
@@ -3128,6 +3129,7 @@ async function saveToFirebase() {
   try {
     await setDoc(doc(db, 'users', currentUser.uid), {
       animals: JSON.parse(JSON.stringify(window.animals)),
+      suruTakvim: JSON.parse(localStorage.getItem('suru_takvim') || '[]'),
       updatedAt: new Date().toISOString()
     });
   } catch(e) { console.error('Kayıt hatası:', e); }
@@ -3136,19 +3138,28 @@ async function saveToFirebase() {
 function startListening() {
   if (unsubscribe) unsubscribe();
   unsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
-    if (snap.exists() && snap.data().animals) {
-      window.animals = snap.data().animals;
-      localStorage.setItem('ciftlik_animals', JSON.stringify(window.animals));
-      migrateKupeNos();
-      otomatikTurGuncelle();
+    if (snap.exists()) {
+      if (snap.data().animals) {
+        window.animals = snap.data().animals;
+        localStorage.setItem('ciftlik_animals', JSON.stringify(window.animals));
+        migrateKupeNos();
+        otomatikTurGuncelle();
+      }
+      if (snap.data().suruTakvim) {
+        localStorage.setItem('suru_takvim', JSON.stringify(snap.data().suruTakvim));
+      }
       if (window.currentPage === 'detail') showPage('dashboard');
-      else { renderDashboard(); if (window.currentPage === 'animals') renderAnimals(); }
+      else { renderDashboard(); if (window.currentPage === 'animals') renderAnimals(); if (window.currentPage === 'takvim') renderTakvim(); }
     }
   });
 }
 
 window._firebaseSave = function(data) {
   window.animals = data;
+  saveToFirebase();
+};
+
+window._firebaseSaveTakvim = function(data) {
   saveToFirebase();
 };
 
