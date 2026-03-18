@@ -1278,10 +1278,11 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  const pages = ['dashboard','animals','gecmis','takvim','reminders','ayarlar','suru','vet'];
-  const idx = pages.indexOf(page);
+  // Sadece nav'daki butonlar: dashboard, animals, gecmis, takvim, reminders
+  const navPages = ['dashboard','animals','gecmis','takvim','reminders'];
+  const idx = navPages.indexOf(page);
   if (idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
-  document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim'].includes(page) ? 'none' : 'flex';
+  document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim','reminders'].includes(page) ? 'none' : 'flex';
   currentPage = page;
   if (page === 'dashboard') renderDashboard();
   if (page === 'animals') renderAnimals();
