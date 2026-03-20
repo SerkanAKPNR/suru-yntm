@@ -2054,6 +2054,7 @@ function deleteVaccine(animalId, idx) {
 function deleteWeight(animalId, tarih) {
   const a = animals.find(x => x.id === animalId);
   if (!a) return;
+  if (!confirm(`${tarih} tarihli ağırlık kaydı silinsin mi?`)) return;
   a.weights = a.weights.filter(w => w.tarih !== tarih);
   save();
   renderDetail();
@@ -2845,6 +2846,7 @@ function saveBirth() {
 function deleteBirth(animalId, idx) {
   const a = animals.find(x => x.id === animalId);
   if (!a) return;
+  if (!confirm('Bu doğum kaydı silinsin mi?')) return;
   a.dogumlar.splice(idx, 1);
   save(); renderDetail(); showToast('Kayıt silindi');
 }
