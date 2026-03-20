@@ -541,6 +541,7 @@
   <button class="nav-btn" onclick="showPage('animals')">Hayvanlar</button>
   <button class="nav-btn" onclick="showPage('gecmis')">Geçmiş</button>
   <button class="nav-btn" onclick="showPage('takvim')">📅 Takvim</button>
+  <button class="nav-btn" onclick="showPage('rapor')">📊 Rapor</button>
   <button class="nav-btn" onclick="showPage('reminders')">Hatırlatıcılar</button>
 </nav>
 
@@ -732,6 +733,35 @@
     </div>
     <div id="vetKayitList"></div>
   </div>
+</div>
+
+<!-- DÖNEM RAPORU -->
+<div class="page" id="page-rapor">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div class="sec-title" style="margin:0;">Dönem Raporu</div>
+  </div>
+  
+  <!-- Tarih filtresi -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;">
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Başlangıç</label>
+        <input class="form-input" id="rapor_bas" type="date" onchange="renderRapor()">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Bitiş</label>
+        <input class="form-input" id="rapor_bit" type="date" onchange="renderRapor()">
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+      <button onclick="raporHizliFiltre(3)" class="chip">Son 3 ay</button>
+      <button onclick="raporHizliFiltre(6)" class="chip">Son 6 ay</button>
+      <button onclick="raporHizliFiltre(12)" class="chip">Son 1 yıl</button>
+      <button onclick="raporHizliFiltre(0)" class="chip">Tümü</button>
+    </div>
+  </div>
+
+  <div id="raporIcerik"></div>
 </div>
 
 <!-- REMINDERS -->
@@ -1106,6 +1136,16 @@
           <input class="form-input" id="e_durum_not" placeholder="Ahmet Bey'e satıldı...">
         </div>
       </div>
+      <div class="form-row" id="e_durum_fiyat_row">
+        <div class="form-group">
+          <label class="form-label">Satış / Kesim Fiyatı (₺)</label>
+          <input class="form-input" id="e_durum_fiyat" type="number" placeholder="1500">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Canlı Ağırlık (kg)</label>
+          <input class="form-input" id="e_durum_agirlik" type="number" placeholder="45" step="0.1">
+        </div>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">Not</label>
@@ -1302,11 +1342,11 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  // Sadece nav'daki butonlar: dashboard, animals, gecmis, takvim, reminders
-  const navPages = ['dashboard','animals','gecmis','takvim','reminders'];
+  // Sadece nav'daki butonlar: dashboard, animals, gecmis, takvim, rapor, reminders
+  const navPages = ['dashboard','animals','gecmis','takvim','rapor','reminders'];
   const idx = navPages.indexOf(page);
   if (idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
-  document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim','reminders'].includes(page) ? 'none' : 'flex';
+  document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim','reminders','rapor'].includes(page) ? 'none' : 'flex';
   currentPage = page;
   if (page === 'dashboard') renderDashboard();
   if (page === 'animals') renderAnimals();
@@ -1316,6 +1356,7 @@ function showPage(page) {
   if (page === 'suru') renderSuruPage();
   if (page === 'vet') renderVetPage();
   if (page === 'takvim') renderTakvim();
+  if (page === 'rapor') renderRaporPage();
   if (page === 'detail') renderDetail();
 }
 
@@ -2140,6 +2181,8 @@ function openEditModal(id) {
   detayEl.style.display = durum !== 'hayatta' ? 'block' : 'none';
   document.getElementById('e_durum_tarih').value = a.durumTarih || a.olduTarihi || '';
   document.getElementById('e_durum_not').value = a.durumNot || '';
+  document.getElementById('e_durum_fiyat').value = a.durumFiyat || '';
+  document.getElementById('e_durum_agirlik').value = a.durumAgirlik || '';
   document.getElementById('e_not').value = a.not || '';
   document.getElementById('e_kupe').value = a.kupe || '';
   document.getElementById('e_isletme').value = a.isletme || '';
@@ -2185,8 +2228,13 @@ function saveEdit(silent = false) {
     a.durumTarih = document.getElementById('e_durum_tarih').value || today();
     if (yeniDurum === 'oldu') a.olduTarihi = a.durumTarih;
     a.durumNot = document.getElementById('e_durum_not').value.trim();
+    const fiyat = document.getElementById('e_durum_fiyat').value;
+    const agirlik = document.getElementById('e_durum_agirlik').value;
+    if (fiyat) a.durumFiyat = parseFloat(fiyat);
+    if (agirlik) a.durumAgirlik = parseFloat(agirlik);
   } else {
     delete a.durumTarih; delete a.durumNot; delete a.olduTarihi;
+    delete a.durumFiyat; delete a.durumAgirlik;
   }
   a.not = document.getElementById('e_not').value.trim();
   save();
@@ -2889,7 +2937,7 @@ async function readKupeFromPhoto(event) {
 // ===== SWIPE NAVİGASYON =====
 (function() {
   let startX = 0, startY = 0;
-  const navPages = ['dashboard','animals','gecmis','takvim','reminders'];
+  const navPages = ['dashboard','animals','gecmis','takvim','rapor','reminders'];
   
   document.addEventListener('touchstart', e => {
     startX = e.touches[0].clientX;
@@ -2922,7 +2970,148 @@ async function readKupeFromPhoto(event) {
   }, { passive: true });
 })();
 
-// ===== GEBELİK TAKİBİ =====
+// ===== DÖNEM RAPORU =====
+function renderRaporPage() {
+  // Varsayılan: son 6 ay
+  if (!document.getElementById('rapor_bas').value) {
+    raporHizliFiltre(6);
+    return;
+  }
+  renderRapor();
+}
+
+function raporHizliFiltre(ay) {
+  const bit = today();
+  let bas;
+  if (ay === 0) {
+    bas = '2000-01-01';
+  } else {
+    const d = new Date();
+    d.setMonth(d.getMonth() - ay);
+    bas = d.toISOString().slice(0,10);
+  }
+  document.getElementById('rapor_bas').value = bas;
+  document.getElementById('rapor_bit').value = bit;
+  renderRapor();
+}
+
+function renderRapor() {
+  const bas = document.getElementById('rapor_bas').value;
+  const bit = document.getElementById('rapor_bit').value;
+  if (!bas || !bit) return;
+
+  const basD = new Date(bas);
+  const bitD = new Date(bit);
+
+  // Bu dönemde durumu değişen hayvanlar
+  const donemHayvanlar = animals.filter(a => {
+    if (!a.durumTarih) return false;
+    const d = new Date(a.durumTarih);
+    return d >= basD && d <= bitD;
+  });
+
+  const satilan = donemHayvanlar.filter(a => a.durum === 'satildi');
+  const kesilen = donemHayvanlar.filter(a => a.durum === 'kesildi');
+  const ölen = donemHayvanlar.filter(a => a.durum === 'oldu');
+
+  // Bu dönemde doğan kuzular
+  const dogenKuzular = animals.filter(a => {
+    if (!a.dogumTarihi) return false;
+    const d = new Date(a.dogumTarihi);
+    return d >= basD && d <= bitD;
+  });
+
+  // Gelir hesabı
+  const toplamGelir = [...satilan, ...kesilen].reduce((s, a) => s + (a.durumFiyat || 0), 0);
+  const toplamAgirlik = [...satilan, ...kesilen].reduce((s, a) => s + (a.durumAgirlik || 0), 0);
+
+  // GCAA
+  const gcaaHayvanlar = donemHayvanlar.filter(a => a.weights && a.weights.length >= 2);
+  let gcaaOrtalama = null;
+  if (gcaaHayvanlar.length > 0) {
+    const gcaalar = gcaaHayvanlar.map(a => {
+      const sortedW = [...a.weights].sort((x,y) => new Date(x.tarih) - new Date(y.tarih));
+      const ilk = sortedW[0];
+      const son = sortedW[sortedW.length - 1];
+      const gunFark = Math.max(1, Math.round((new Date(son.tarih) - new Date(ilk.tarih)) / 86400000));
+      return ((son.agirlik - ilk.agirlik) * 1000) / gunFark;
+    }).filter(g => g > 0);
+    if (gcaalar.length > 0) gcaaOrtalama = Math.round(gcaalar.reduce((a,b) => a+b, 0) / gcaalar.length);
+  }
+
+  // kg başına fiyat
+  const kgFiyat = toplamAgirlik > 0 ? (toplamGelir / toplamAgirlik).toFixed(0) : null;
+
+  const el = document.getElementById('raporIcerik');
+  el.innerHTML = `
+    <div class="sec-title">${bas} — ${bit} dönemi</div>
+    
+    <!-- Ana istatistikler -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="stat-card" style="padding:14px 12px;">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">DOĞAN KUZU</div>
+        <div style="font-size:2rem;font-weight:700;color:var(--kuzu);line-height:1;">${dogenKuzular.length}</div>
+      </div>
+      <div class="stat-card" style="padding:14px 12px;">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">TOPLAM ÇIKIŞ</div>
+        <div style="font-size:2rem;font-weight:700;color:var(--text);line-height:1;">${donemHayvanlar.length}</div>
+        <div style="font-size:0.7rem;color:var(--text2);margin-top:4px;">${satilan.length} satış • ${kesilen.length} kesim • ${ölen.length} ölüm</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="stat-card" style="padding:14px 12px;">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">TOPLAM GELİR</div>
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent);line-height:1;">${toplamGelir > 0 ? toplamGelir.toLocaleString('tr-TR') + ' ₺' : '—'}</div>
+        ${kgFiyat ? `<div style="font-size:0.7rem;color:var(--text2);margin-top:4px;">${kgFiyat} ₺/kg ortalama</div>` : ''}
+      </div>
+      <div class="stat-card" style="padding:14px 12px;">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORTALAMA GCAA</div>
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent2);line-height:1;">${gcaaOrtalama ? gcaaOrtalama + ' gr' : '—'}</div>
+        ${gcaaOrtalama ? `<div style="font-size:0.7rem;color:var(--text2);margin-top:4px;">günlük canlı ağırlık artışı</div>` : '<div style="font-size:0.7rem;color:var(--text2);margin-top:4px;">ağırlık kaydı yetersiz</div>'}
+      </div>
+    </div>
+
+    <!-- Satılan hayvanlar listesi -->
+    ${satilan.length > 0 ? `
+    <div class="sec-title">Satılan Hayvanlar (${satilan.length})</div>
+    ${satilan.map(a => `
+      <div class="animal-card" style="border-color:var(--accent);margin-bottom:6px;" onclick="openDetail('${a.id}')">
+        <div class="top">
+          <span class="name">${a.isim || a.kupe}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--accent);">${a.durumFiyat ? a.durumFiyat.toLocaleString('tr-TR') + ' ₺' : '—'}</span>
+        </div>
+        <div class="info">
+          <span>🏷 ${a.kupe || '—'}</span>
+          <span>📅 ${a.durumTarih}</span>
+          ${a.durumAgirlik ? `<span>⚖️ ${a.durumAgirlik} kg</span>` : ''}
+          ${a.durumNot ? `<span>📝 ${a.durumNot}</span>` : ''}
+        </div>
+      </div>`).join('')}` : ''}
+
+    <!-- Kesilen hayvanlar listesi -->
+    ${kesilen.length > 0 ? `
+    <div class="sec-title">Kesilen Hayvanlar (${kesilen.length})</div>
+    ${kesilen.map(a => `
+      <div class="animal-card" style="border-color:var(--warn);margin-bottom:6px;" onclick="openDetail('${a.id}')">
+        <div class="top">
+          <span class="name">${a.isim || a.kupe}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--warn);">${a.durumFiyat ? a.durumFiyat.toLocaleString('tr-TR') + ' ₺' : '—'}</span>
+        </div>
+        <div class="info">
+          <span>🏷 ${a.kupe || '—'}</span>
+          <span>📅 ${a.durumTarih}</span>
+          ${a.durumAgirlik ? `<span>⚖️ ${a.durumAgirlik} kg</span>` : ''}
+          ${a.durumNot ? `<span>📝 ${a.durumNot}</span>` : ''}
+        </div>
+      </div>`).join('')}` : ''}
+
+    ${donemHayvanlar.length === 0 && dogenKuzular.length === 0 ? 
+      '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Bu dönemde kayıt bulunamadı</div></div>' : ''}
+  `;
+}
+
+
 function openGebelikModal(id) {
   currentAnimalId = id;
   const a = animals.find(x => x.id === id);
