@@ -1451,7 +1451,7 @@ function renderDashboard() {
       const ilk = sortedW[0];
       const son = sortedW[sortedW.length - 1];
       const gunFark = Math.max(1, Math.round((new Date(son.tarih) - new Date(ilk.tarih)) / 86400000));
-      return (son.agirlik - ilk.agirlik) / gunFark;
+      return ((son.agirlik - ilk.agirlik) * 1000) / gunFark; // kg → gram
     }).filter(g => g > 0);
     if (gcaalar.length > 0) {
       gcaaOrtalama = (gcaalar.reduce((a,b) => a+b, 0) / gcaalar.length).toFixed(0);
