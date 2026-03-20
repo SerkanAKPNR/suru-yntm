@@ -1761,6 +1761,7 @@ function renderDetail() {
       </svg>
     </div>`;
   }
+  const hayvanVetKayitlar = (window.vetKayitlar||[]).filter(k => k.hayvan === (a.kupe||a.isim));
   html += `<div class="detail-card" style="margin-bottom:8px;">
     <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
       <span>🩺 Tedavi Geçmişi</span>
