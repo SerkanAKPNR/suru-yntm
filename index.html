@@ -1943,6 +1943,37 @@ function saveAnimal() {
     weights: []
   };
   animals.push(a);
+  
+  // Anne seçildiyse doğum kaydını otomatik güncelle
+  if (a.anneId && a.dogumTarihi) {
+    const anne = animals.find(x => x.id === a.anneId);
+    if (anne) {
+      if (!anne.dogumlar) anne.dogumlar = [];
+      // Aynı tarihte kayıt var mı?
+      const mevcutIdx = anne.dogumlar.findIndex(d => d.tarih === a.dogumTarihi);
+      if (mevcutIdx !== -1) {
+        // Güncelle — yavru sayısını artır
+        anne.dogumlar[mevcutIdx].sayi++;
+        anne.dogumlar[mevcutIdx].yavrular.push({
+          kupe: a.kupe,
+          agirlik: a.dogumAgirlik ? parseFloat(a.dogumAgirlik) : null,
+          cinsiyet: a.cinsiyet === 'erkek' ? 'koç' : 'kuzu'
+        });
+      } else {
+        // Yeni doğum kaydı ekle
+        anne.dogumlar.push({
+          tarih: a.dogumTarihi,
+          sayi: 1,
+          yavrular: [{
+            kupe: a.kupe,
+            agirlik: a.dogumAgirlik ? parseFloat(a.dogumAgirlik) : null,
+            cinsiyet: a.cinsiyet === 'erkek' ? 'koç' : 'kuzu'
+          }]
+        });
+      }
+    }
+  }
+
   save();
   closeModal('addModal');
   showToast('Hayvan eklendi ✓');
