@@ -2,7 +2,14 @@
 <html lang="tr"><head><meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Uygulama! v2026.03.15-v15</title>
+<title>Dr. Koyuncu</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dr. Koyuncu">
+<meta name="theme-color" content="#8fbe3c">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -515,7 +522,7 @@
 <!-- GİRİŞ EKRANI -->
 <div id="loginScreen" style="display:flex;position:fixed;inset:0;background:#0f1209;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:32px;">
   <div style="font-size:3rem;margin-bottom:16px;">🐑</div>
-  <h1 style="font-size:1.5rem;font-weight:700;color:#c9e86a;margin-bottom:8px;">Uygulama!</h1>
+  <h1 style="font-size:1.5rem;font-weight:700;color:#c9e86a;margin-bottom:8px;">Dr. Koyuncu</h1>
   <p style="color:#8a9870;font-size:0.85rem;margin-bottom:32px;text-align:center;">Verilerinize her cihazdan erişmek için giriş yapın</p>
   <div style="width:100%;max-width:300px;">
     <input id="loginEmail" type="email" placeholder="E-posta" style="width:100%;background:#1a1f10;border:1px solid #2e3a1a;border-radius:8px;padding:12px;color:#e8f0d0;font-size:1rem;margin-bottom:10px;outline:none;">
@@ -529,7 +536,7 @@
 <div id="appScreen" style="display:none;">
 <div class="header">
   <div>
-    <h1>🐑 Uygulama!</h1>
+    <h1>🐑 Dr. Koyuncu</h1>
     <div class="sub" id="headerSub">Toplam 22 hayvan</div>
     <div style="font-size:0.65rem;color:var(--text2);font-family:'JetBrains Mono',monospace;">v2026.03.15-v15</div>
   </div>
@@ -1342,8 +1349,10 @@ function nextVaccineDate(v) {
   return d.toISOString().slice(0,10);
 }
 
-// ===== PAGES =====
+// ===== BROWSER HISTORY NAVİGASYON =====
 let currentPage = 'dashboard';
+let isPopState = false;
+
 function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -1364,7 +1373,27 @@ function showPage(page) {
   if (page === 'takvim') renderTakvim();
   if (page === 'rapor') renderRaporPage();
   if (page === 'detail') renderDetail();
+
+  // History'e ekle (popstate'den gelmediyse)
+  if (!isPopState) {
+    const state = { page, animalId: currentAnimalId };
+    history.pushState(state, '', '#' + page);
+  }
 }
+
+// Geri butonu / gesture yakalandığında
+window.addEventListener('popstate', e => {
+  isPopState = true;
+  if (e.state && e.state.page) {
+    if (e.state.page === 'detail' && e.state.animalId) {
+      currentAnimalId = e.state.animalId;
+    }
+    showPage(e.state.page);
+  } else {
+    showPage('dashboard');
+  }
+  isPopState = false;
+});
 
 // ===== DASHBOARD =====
 function renderDashboard() {
@@ -3596,8 +3625,9 @@ function migrateKupeNos() {
 migrateKupeNos();
 otomatikTurGuncelle();
 currentAnimalId = null;
+// İlk history state'i koy
+history.replaceState({ page: 'dashboard' }, '', '#dashboard');
 showPage('dashboard');
-// Bildirim kontrolü — uygulama açılışında
 setTimeout(() => bildirimKontrol(), 1000);
 </script>
 
@@ -3703,5 +3733,14 @@ onAuthStateChanged(auth, user => {
     if (unsubscribe) unsubscribe();
   }
 });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/suru-yntm/service-worker.js')
+      .then(reg => console.log('SW kayıtlı:', reg.scope))
+      .catch(err => console.log('SW hatası:', err));
+  });
+}
 </script>
 </body></html>
