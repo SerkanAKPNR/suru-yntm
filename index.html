@@ -555,6 +555,7 @@
   <div class="sec-title">Yaklaşan Aşılar</div>
   <div id="dashReminders"><div style="color:var(--text2);font-size:0.85rem;padding:8px 0;">Yaklaşan aşı yok 👍</div></div>
   <div id="dashSuruUyari" style="margin-top:8px;"></div>
+  <div id="dashGebelik" style="margin-top:8px;"></div>
   <div id="dashStats2" style="margin-top:16px;">
     <div class="sec-title">Son 3 Ay Doğum İstatistikleri</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
@@ -1215,6 +1216,29 @@
   </div>
 </div>
 
+<!-- GEBELİK TAKİBİ MODAL -->
+<div class="modal-overlay" id="gebelikModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🤰 Gebelik Takibi</div>
+    <div class="form-group">
+      <label class="form-label">Koç Katım Tarihi</label>
+      <input class="form-input" id="gb_tarih" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Not (opsiyonel)</label>
+      <input class="form-input" id="gb_not" placeholder="Hangi koç, not...">
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:14px;font-size:0.78rem;color:var(--text2);font-family:'JetBrains Mono',monospace;">
+      ℹ️ Koyunda gebelik süresi ~150 gün. Tahmini doğum tarihi otomatik hesaplanır.
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" style="flex:1" onclick="saveGebelik()">Kaydet</button>
+      <button class="btn btn-outline" onclick="closeModal('gebelikModal')">İptal</button>
+    </div>
+  </div>
+</div>
+
 <!-- BİLDİRİM POPUP -->
 <div class="bildirim-overlay" id="bildirimPopup">
   <div class="bildirim-box">
@@ -1386,9 +1410,57 @@ function renderDashboard() {
   const ikizOran = doguranSayi > 0 ? Math.round((ikizDoguranAnneler.size / doguranSayi) * 100) : 0;
   const ikizKuzu = ikizDoguranAnneler.size;
 
+  // Gebelik uyarıları
+  const gebeKoyunlar = animals.filter(a => 
+    a.tur === 'koyun' && (!a.durum || a.durum === 'hayatta') && a.gebelik?.katimTarihi
+  ).map(a => {
+    const tahminiDogum = new Date(a.gebelik.katimTarihi);
+    tahminiDogum.setDate(tahminiDogum.getDate() + 150);
+    const dogumStr = tahminiDogum.toISOString().slice(0,10);
+    return { a, dogumStr, days: daysUntil(dogumStr) };
+  }).filter(x => x.days <= 14 && x.days >= -7)
+    .sort((a,b) => a.days - b.days);
+
+  const dashGebelik = document.getElementById('dashGebelik');
+  if (gebeKoyunlar.length > 0) {
+    dashGebelik.innerHTML = `<div class="sec-title">Yaklaşan Doğumlar 🐣</div>` + gebeKoyunlar.map(({a, dogumStr, days}) => {
+      const cls = days < 0 ? 'overdue' : 'soon';
+      const label = days < 0 ? `${Math.abs(days)} gün önce!` : days === 0 ? 'Bugün!' : `${days} gün kaldı`;
+      return `<div class="reminder-card ${cls}" onclick="openDetail('${a.id}')" style="cursor:pointer;">
+        <div class="reminder-top">
+          <span class="reminder-animal">🐑 ${a.isim || a.kupe}</span>
+          <span class="reminder-days">${label}</span>
+        </div>
+        <div class="reminder-vaccine">Tahmini doğum: ${dogumStr}</div>
+      </div>`;
+    }).join('');
+  } else {
+    dashGebelik.innerHTML = '';
+  }
+
+  // GCAA hesapla (kuzular için)
+  const kuzularAgirlikli = animals.filter(a => 
+    a.tur === 'kuzu' && (!a.durum || a.durum === 'hayatta') && 
+    a.weights && a.weights.length >= 2
+  );
+  
+  let gcaaOrtalama = null;
+  if (kuzularAgirlikli.length > 0) {
+    const gcaalar = kuzularAgirlikli.map(a => {
+      const sortedW = [...a.weights].sort((x,y) => new Date(x.tarih) - new Date(y.tarih));
+      const ilk = sortedW[0];
+      const son = sortedW[sortedW.length - 1];
+      const gunFark = Math.max(1, Math.round((new Date(son.tarih) - new Date(ilk.tarih)) / 86400000));
+      return (son.agirlik - ilk.agirlik) / gunFark;
+    }).filter(g => g > 0);
+    if (gcaalar.length > 0) {
+      gcaaOrtalama = (gcaalar.reduce((a,b) => a+b, 0) / gcaalar.length).toFixed(0);
+    }
+  }
+
   document.getElementById('dashStats2').innerHTML = `
     <div class="sec-title">Son 3 Ay Doğum İstatistikleri</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div class="stat-card" style="padding:16px 12px;">
         <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">DOĞAN KUZU</div>
         <div style="font-size:2.2rem;font-weight:700;color:var(--kuzu);line-height:1;">${doganKuzuSayisi}</div>
@@ -1400,6 +1472,14 @@ function renderDashboard() {
         <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${ikizKuzu}/${doguranSayi} koyun</div>
       </div>
     </div>
+    ${gcaaOrtalama !== null ? `
+    <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px;">
+      <div class="stat-card" style="padding:16px 12px;">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORTALAMA GCAA (KUZU)</div>
+        <div style="font-size:2.2rem;font-weight:700;color:var(--accent2);line-height:1;">${gcaaOrtalama} <span style="font-size:1rem;">gr/gün</span></div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${kuzularAgirlikli.length} kuzunun ortalaması</div>
+      </div>
+    </div>` : ''}
   `;
 }
 
@@ -1612,7 +1692,75 @@ function renderDetail() {
       </div>`).join('')}
   </div>`;
 
-  const hayvanVetKayitlar = (window.vetKayitlar||[]).filter(k => k.hayvan === (a.kupe||a.isim));
+  // Gebelik takibi (koyunlar için)
+  if (a.tur === 'koyun' && (!a.durum || a.durum === 'hayatta')) {
+    const gebelik = a.gebelik || null;
+    const kocKatimTarihi = gebelik ? gebelik.katimTarihi : null;
+    let gebelikHtml = '';
+    
+    if (kocKatimTarihi) {
+      const tahminiDogum = new Date(kocKatimTarihi);
+      tahminiDogum.setDate(tahminiDogum.getDate() + 150); // Koyunda gebelik ~150 gün
+      const dogumStr = tahminiDogum.toISOString().slice(0,10);
+      const kalanGun = daysUntil(dogumStr);
+      const durumRenk = kalanGun < 0 ? 'var(--accent)' : kalanGun <= 14 ? 'var(--danger)' : kalanGun <= 30 ? 'var(--warn)' : 'var(--text2)';
+      const durumLabel = kalanGun < 0 ? `${Math.abs(kalanGun)} gün önce doğurmuş olmalı` : kalanGun === 0 ? 'Bugün doğurabilir!' : `${kalanGun} gün kaldı`;
+      
+      gebelikHtml = `
+        <div class="detail-row"><span class="detail-key">Koç Katım</span><span class="detail-val">${kocKatimTarihi}</span></div>
+        <div class="detail-row"><span class="detail-key">Tahmini Doğum</span><span class="detail-val" style="color:${durumRenk};">${dogumStr}</span></div>
+        <div class="detail-row"><span class="detail-key">Durum</span><span class="detail-val" style="color:${durumRenk};">${durumLabel}</span></div>
+        ${gebelik.not ? `<div class="detail-row"><span class="detail-key">Not</span><span class="detail-val">${gebelik.not}</span></div>` : ''}
+      `;
+    }
+    
+    html += `<div class="detail-card">
+      <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>🤰 Gebelik Takibi</span>
+        <button class="btn btn-sm btn-outline" onclick="openGebelikModal('${a.id}')">
+          ${kocKatimTarihi ? '✏️ Güncelle' : '+ Ekle'}
+        </button>
+      </div>
+      ${kocKatimTarihi ? gebelikHtml : '<div style="color:var(--text2);font-size:0.85rem;">Koç katım tarihi girilmemiş</div>'}
+    </div>`;
+  }
+
+  // Kilo grafiği
+  if (weights.length >= 2) {
+    const sortedForChart = [...weights].sort((a,b) => new Date(a.tarih) - new Date(b.tarih));
+    const minW = Math.min(...sortedForChart.map(w => w.agirlik));
+    const maxW = Math.max(...sortedForChart.map(w => w.agirlik));
+    const range = maxW - minW || 1;
+    const chartH = 80;
+    const chartW = 280;
+    const points = sortedForChart.map((w, i) => {
+      const x = (i / (sortedForChart.length - 1)) * chartW;
+      const y = chartH - ((w.agirlik - minW) / range) * chartH;
+      return `${x},${y}`;
+    }).join(' ');
+    
+    html += `<div class="detail-card">
+      <div class="detail-card-title">Kilo Grafiği</div>
+      <svg viewBox="0 0 ${chartW} ${chartH + 20}" style="width:100%;overflow:visible;">
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#8fbe3c" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#8fbe3c" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon points="${points} ${chartW},${chartH} 0,${chartH}" fill="url(#chartGrad)"/>
+        <polyline points="${points}" fill="none" stroke="#8fbe3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${sortedForChart.map((w, i) => {
+          const x = (i / (sortedForChart.length - 1)) * chartW;
+          const y = chartH - ((w.agirlik - minW) / range) * chartH;
+          return `<circle cx="${x}" cy="${y}" r="4" fill="#8fbe3c"/>
+          <text x="${x}" y="${y - 8}" text-anchor="middle" font-size="9" fill="#c9e86a" font-family="JetBrains Mono">${w.agirlik}kg</text>`;
+        }).join('')}
+        <text x="0" y="${chartH + 16}" font-size="8" fill="#8a9870" font-family="JetBrains Mono">${sortedForChart[0].tarih.slice(5)}</text>
+        <text x="${chartW}" y="${chartH + 16}" text-anchor="end" font-size="8" fill="#8a9870" font-family="JetBrains Mono">${sortedForChart[sortedForChart.length-1].tarih.slice(5)}</text>
+      </svg>
+    </div>`;
+  }
   html += `<div class="detail-card" style="margin-bottom:8px;">
     <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
       <span>🩺 Tedavi Geçmişi</span>
@@ -1796,9 +1944,11 @@ function toggleOldu(id) {
   const a = animals.find(x => x.id === id);
   if (!a) return;
   if (a.durum && a.durum !== 'hayatta') {
+    if (!confirm('Bu hayvanı tekrar hayatta olarak işaretlemek istiyor musunuz?')) return;
     a.durum = 'hayatta'; a.oldu = false;
     delete a.durumTarih; delete a.durumNot;
   } else {
+    if (!confirm(`"${a.isim || a.kupe}" öldü olarak işaretlensin mi?`)) return;
     a.durum = 'oldu'; a.oldu = true; a.olduTarihi = today(); a.durumTarih = today();
   }
   save(); renderDetail(); renderDashboard();
@@ -1806,7 +1956,9 @@ function toggleOldu(id) {
 }
 
 function deleteAnimal(id) {
-  if (!confirm('Bu hayvanı silmek istediğinize emin misiniz?')) return;
+  const a = animals.find(x => x.id === id);
+  if (!a) return;
+  if (!confirm(`"${a.isim || a.kupe}" silinsin mi?\n\nBu işlem geri alınamaz!`)) return;
   animals = animals.filter(a => a.id !== id);
   save();
   showPage('animals');
@@ -2731,6 +2883,66 @@ async function readKupeFromPhoto(event) {
     }
   } catch(e) { status.textContent = '⚠️ Hata oluştu'; status.style.color = 'var(--danger)'; }
   event.target.value = '';
+}
+
+// ===== SWIPE NAVİGASYON =====
+(function() {
+  let startX = 0, startY = 0;
+  const navPages = ['dashboard','animals','gecmis','takvim','reminders'];
+  
+  document.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+  
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    
+    // Yatay hareket yeterliyse ve dikey hareketten fazlaysa
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    
+    // Modal açıksa swipe yapma
+    if (document.querySelector('.modal-overlay.open')) return;
+    
+    // Detail sayfasında swipe yapma
+    if (currentPage === 'detail') return;
+    
+    const idx = navPages.indexOf(currentPage);
+    if (idx === -1) return;
+    
+    if (dx < 0 && idx < navPages.length - 1) {
+      // Sola kaydır → sonraki sayfa
+      showPage(navPages[idx + 1]);
+    } else if (dx > 0 && idx > 0) {
+      // Sağa kaydır → önceki sayfa
+      showPage(navPages[idx - 1]);
+    }
+  }, { passive: true });
+})();
+
+// ===== GEBELİK TAKİBİ =====
+function openGebelikModal(id) {
+  currentAnimalId = id;
+  const a = animals.find(x => x.id === id);
+  document.getElementById('gb_tarih').value = a?.gebelik?.katimTarihi || today();
+  document.getElementById('gb_not').value = a?.gebelik?.not || '';
+  document.getElementById('gebelikModal').classList.add('open');
+}
+
+function saveGebelik() {
+  const a = animals.find(x => x.id === currentAnimalId);
+  if (!a) return;
+  const tarih = document.getElementById('gb_tarih').value;
+  if (!tarih) { showToast('Tarih gerekli!'); return; }
+  a.gebelik = {
+    katimTarihi: tarih,
+    not: document.getElementById('gb_not').value.trim()
+  };
+  save();
+  closeModal('gebelikModal');
+  showToast('Gebelik kaydedildi ✓');
+  renderDetail();
 }
 
 // ===== SÜRÜ TAKVİMİ =====
