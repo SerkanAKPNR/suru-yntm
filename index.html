@@ -646,9 +646,13 @@
     <button class="btn btn-outline" onclick="cikisYap()" style="width:100%;padding:14px;font-size:1rem;margin-bottom:10px;">
       🚪 Çıkış Yap
     </button>
-    <button class="btn btn-outline" onclick="tumVerileriSil()" style="width:100%;padding:14px;font-size:1rem;border-color:var(--danger);color:var(--danger);">
-      🗑️ Tüm Verileri Sil
+    <button class="btn btn-outline" onclick="dogumKayitlariniSenkronize()" style="width:100%;padding:14px;font-size:1rem;border-color:var(--accent);color:var(--accent);">
+      🔄 Doğum Kayıtlarını Güncelle
     </button>
+    <div style="font-size:0.78rem;color:var(--text2);padding:0 4px;">
+      Mevcut kuzuların anne bilgisine göre doğum kayıtlarını otomatik tamamlar.
+    </div>
+    <div style="height:1px;background:var(--border);margin:8px 0;"></div>
     <div style="font-size:0.78rem;color:var(--text2);padding:0 4px;">
       Dikkat: Bu işlem geri alınamaz!
     </div>
@@ -2986,23 +2990,21 @@ async function readKupeFromPhoto(event) {
     const dx = e.changedTouches[0].clientX - startX;
     const dy = e.changedTouches[0].clientY - startY;
     
-    // Yatay hareket yeterliyse ve dikey hareketten fazlaysa
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    
-    // Modal açıksa swipe yapma
     if (document.querySelector('.modal-overlay.open')) return;
-    
-    // Detail sayfasında swipe yapma
-    if (currentPage === 'detail') return;
+
+    // Detail sayfasında sağa kaydır → hayvanlar listesine dön
+    if (currentPage === 'detail') {
+      if (dx > 0) showPage('animals');
+      return;
+    }
     
     const idx = navPages.indexOf(currentPage);
     if (idx === -1) return;
     
     if (dx < 0 && idx < navPages.length - 1) {
-      // Sola kaydır → sonraki sayfa
       showPage(navPages[idx + 1]);
     } else if (dx > 0 && idx > 0) {
-      // Sağa kaydır → önceki sayfa
       showPage(navPages[idx - 1]);
     }
     // Aktif nav butonunu ortaya scroll et
@@ -3186,6 +3188,49 @@ function saveGebelik() {
   closeModal('gebelikModal');
   showToast('Gebelik kaydedildi ✓');
   renderDetail();
+}
+
+// ===== DOĞUM KAYITLARINI SENKRONİZE ET =====
+function dogumKayitlariniSenkronize() {
+  if (!confirm('Mevcut kuzu bilgilerine göre annelerin doğum kayıtları güncellensin mi?\n\nMevcut kayıtlara dokunulmaz, sadece eksik olanlar eklenir.')) return;
+  
+  let eklenen = 0;
+  
+  animals.forEach(kuzu => {
+    if (!kuzu.anneId || !kuzu.dogumTarihi) return;
+    const anne = animals.find(x => x.id === kuzu.anneId);
+    if (!anne) return;
+    if (!anne.dogumlar) anne.dogumlar = [];
+    
+    const mevcutIdx = anne.dogumlar.findIndex(d => d.tarih === kuzu.dogumTarihi);
+    
+    if (mevcutIdx !== -1) {
+      const zatenVar = anne.dogumlar[mevcutIdx].yavrular.some(y => y.kupe === kuzu.kupe);
+      if (!zatenVar) {
+        anne.dogumlar[mevcutIdx].sayi++;
+        anne.dogumlar[mevcutIdx].yavrular.push({
+          kupe: kuzu.kupe,
+          agirlik: kuzu.dogumAgirlik ? parseFloat(kuzu.dogumAgirlik) : null,
+          cinsiyet: kuzu.cinsiyet === 'erkek' ? 'koç' : 'kuzu'
+        });
+        eklenen++;
+      }
+    } else {
+      anne.dogumlar.push({
+        tarih: kuzu.dogumTarihi,
+        sayi: 1,
+        yavrular: [{
+          kupe: kuzu.kupe,
+          agirlik: kuzu.dogumAgirlik ? parseFloat(kuzu.dogumAgirlik) : null,
+          cinsiyet: kuzu.cinsiyet === 'erkek' ? 'koç' : 'kuzu'
+        }]
+      });
+      eklenen++;
+    }
+  });
+  
+  save();
+  showToast(eklenen > 0 ? `✓ ${eklenen} doğum kaydı güncellendi!` : 'Tüm kayıtlar zaten güncel!');
 }
 
 // ===== SÜRÜ TAKVİMİ =====
