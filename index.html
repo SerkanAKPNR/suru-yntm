@@ -3609,6 +3609,7 @@ window.emailKayit = function() {
 };
 
 window.cikisYap = function() {
+  if (!confirm('Çıkış yapmak istediğinize emin misiniz?')) return;
   if (unsubscribe) unsubscribe();
   signOut(auth);
 };
