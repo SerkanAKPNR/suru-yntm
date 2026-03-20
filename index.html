@@ -75,6 +75,8 @@
   .nav-btn.active {
     color: var(--accent2);
     border-bottom-color: var(--accent);
+    font-weight: 700;
+    font-size: 0.95rem;
   }
 
   /* Pages */
@@ -1758,9 +1760,12 @@ function renderDetail() {
     html += `<div class="detail-card">
       <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
         <span>🤰 Gebelik Takibi</span>
-        <button class="btn btn-sm btn-outline" onclick="openGebelikModal('${a.id}')">
-          ${kocKatimTarihi ? '✏️ Güncelle' : '+ Ekle'}
-        </button>
+        <div style="display:flex;gap:6px;">
+          ${kocKatimTarihi ? `<button class="btn btn-sm btn-outline" style="border-color:var(--danger);color:var(--danger);" onclick="silGebelik('${a.id}')">🗑️ Sil</button>` : ''}
+          <button class="btn btn-sm btn-outline" onclick="openGebelikModal('${a.id}')">
+            ${kocKatimTarihi ? '✏️ Güncelle' : '+ Ekle'}
+          </button>
+        </div>
       </div>
       ${kocKatimTarihi ? gebelikHtml : '<div style="color:var(--text2);font-size:0.85rem;">Koç katım tarihi girilmemiş</div>'}
     </div>`;
@@ -2967,6 +2972,11 @@ async function readKupeFromPhoto(event) {
       // Sağa kaydır → önceki sayfa
       showPage(navPages[idx - 1]);
     }
+    // Aktif nav butonunu ortaya scroll et
+    setTimeout(() => {
+      const activeBtn = document.querySelector('.nav-btn.active');
+      if (activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, 50);
   }, { passive: true });
 })();
 
@@ -3118,6 +3128,16 @@ function openGebelikModal(id) {
   document.getElementById('gb_tarih').value = a?.gebelik?.katimTarihi || today();
   document.getElementById('gb_not').value = a?.gebelik?.not || '';
   document.getElementById('gebelikModal').classList.add('open');
+}
+
+function silGebelik(id) {
+  const a = animals.find(x => x.id === id);
+  if (!a) return;
+  if (!confirm('Gebelik kaydı silinsin mi?')) return;
+  delete a.gebelik;
+  save();
+  renderDetail();
+  showToast('Gebelik kaydı silindi');
 }
 
 function saveGebelik() {
