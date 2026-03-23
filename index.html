@@ -472,6 +472,66 @@
   .bildirim-item-isim { font-weight: 600; font-size: 0.95rem; }
   .bildirim-item-gun { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
 
+  /* Günlük Özet & Haftalık Mali Popup */
+  .ozet-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 8000;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+  .ozet-overlay.open { display: flex; }
+  .ozet-box {
+    background: var(--surface);
+    border-radius: 18px 18px 0 0;
+    border: 1px solid var(--border);
+    width: 100%;
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 20px 16px 32px;
+    animation: slideUp 0.3s ease;
+  }
+  .ozet-baslik {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 4px;
+  }
+  .ozet-alt {
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+  .ozet-bolum {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .ozet-bolum-baslik {
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .ozet-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+  }
+  .ozet-item:last-child { border-bottom: none; }
+
   /* Autocomplete */
   .autocomplete-wrap { position: relative; }
   .autocomplete-list {
@@ -757,6 +817,7 @@
 <div class="page" id="page-rapor">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
     <div class="sec-title" style="margin:0;">Dönem Raporu</div>
+    <button class="btn btn-sm" onclick="openGiderModal()">+ Gider Ekle</button>
   </div>
   
   <!-- Tarih filtresi -->
@@ -1293,6 +1354,97 @@
     <div style="display:flex;gap:10px;">
       <button class="btn" style="flex:1" onclick="saveGebelik()">Kaydet</button>
       <button class="btn btn-outline" onclick="closeModal('gebelikModal')">İptal</button>
+    </div>
+  </div>
+</div>
+
+<!-- GÜNLÜK ÖZET POPUP -->
+<div class="ozet-overlay" id="gunlukOzetPopup">
+  <div class="ozet-box">
+    <div class="modal-handle"></div>
+    <div class="ozet-baslik">☀️ Günlük Özet</div>
+    <div class="ozet-alt" id="gunlukOzetTarih"></div>
+    <div id="gunlukOzetIcerik"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn" style="flex:1;" onclick="gunlukOzetKapat()">✓ Tamam</button>
+    </div>
+  </div>
+</div>
+
+<!-- HAFTALIK MALİ POPUP -->
+<div class="ozet-overlay" id="haftalikMaliPopup">
+  <div class="ozet-box">
+    <div class="modal-handle"></div>
+    <div class="ozet-baslik">💰 Haftalık Mali Özet</div>
+    <div class="ozet-alt">Geçen haftanın gelir/giderlerini girin</div>
+    
+    <div class="ozet-bolum">
+      <div class="ozet-bolum-baslik">Bu Hafta Giderler</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Yem (₺)</label>
+          <input class="form-input" id="gider_yem" type="number" placeholder="0">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">İlaç/Aşı (₺)</label>
+          <input class="form-input" id="gider_ilac" type="number" placeholder="0">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Veteriner (₺)</label>
+          <input class="form-input" id="gider_vet" type="number" placeholder="0">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Diğer (₺)</label>
+          <input class="form-input" id="gider_diger" type="number" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:8px;margin-bottom:0;">
+        <label class="form-label">Not (opsiyonel)</label>
+        <input class="form-input" id="gider_not" placeholder="Ne aldın, nereden...">
+      </div>
+    </div>
+
+    <div id="haftalikMaliOzet"></div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn" style="flex:1;" onclick="haftalikMaliKaydet()">💾 Kaydet</button>
+      <button class="btn btn-outline" style="flex:1;" onclick="haftalikMaliKapat()">Sonra</button>
+    </div>
+  </div>
+</div>
+
+<!-- GİDER EKLE MODAL -->
+<div class="modal-overlay" id="giderModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">💰 Gider Ekle</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Tarih</label>
+        <input class="form-input" id="gd_tarih" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kategori</label>
+        <select class="form-select" id="gd_kategori">
+          <option value="yem">🌾 Yem</option>
+          <option value="ilac">💊 İlaç/Aşı</option>
+          <option value="vet">🩺 Veteriner</option>
+          <option value="ekipman">🔧 Ekipman</option>
+          <option value="diger">📦 Diğer</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tutar (₺)</label>
+      <input class="form-input" id="gd_tutar" type="number" placeholder="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Not</label>
+      <input class="form-input" id="gd_not" placeholder="Ne aldın, nereden...">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" style="flex:1;" onclick="giderKaydet()">Kaydet</button>
+      <button class="btn btn-outline" onclick="closeModal('giderModal')">İptal</button>
     </div>
   </div>
 </div>
@@ -3192,6 +3344,134 @@ function navPagesGuncelle() {
 }
 
 
+// ===== GİDER TAKİBİ =====
+function getGiderler() {
+  try { return JSON.parse(localStorage.getItem('giderler') || '[]'); } catch(e) { return []; }
+}
+function saveGiderler(data) {
+  localStorage.setItem('giderler', JSON.stringify(data));
+}
+
+function openGiderModal() {
+  document.getElementById('gd_tarih').value = today();
+  document.getElementById('gd_tutar').value = '';
+  document.getElementById('gd_not').value = '';
+  document.getElementById('giderModal').classList.add('open');
+}
+
+function giderKaydet() {
+  const tarih = document.getElementById('gd_tarih').value;
+  const tutar = parseFloat(document.getElementById('gd_tutar').value);
+  if (!tarih || !tutar) { showToast('Tarih ve tutar gerekli!'); return; }
+  const list = getGiderler();
+  list.push({
+    id: genId(),
+    tarih,
+    kategori: document.getElementById('gd_kategori').value,
+    tutar,
+    not: document.getElementById('gd_not').value.trim(),
+    olusturma: today()
+  });
+  saveGiderler(list);
+  closeModal('giderModal');
+  showToast('Gider kaydedildi ✓');
+  if (currentPage === 'rapor') renderRaporPage();
+}
+
+const kategoriLabel = { yem: '🌾 Yem', ilac: '💊 İlaç/Aşı', vet: '🩺 Veteriner', ekipman: '🔧 Ekipman', diger: '📦 Diğer' };
+
+// ===== GÜNLÜK ÖZET =====
+function gunlukOzetGoster() {
+  const bugun = today();
+  if (localStorage.getItem('gunluk_ozet_' + bugun)) return;
+  const uyarilar = [];
+  animals.forEach(a => {
+    (a.vaccines||[]).forEach(v => {
+      const nd = nextVaccineDate(v);
+      if (!nd) return;
+      const days = daysUntil(nd);
+      if (days < 0) uyarilar.push({ tip: 'danger', mesaj: `${a.isim||a.kupe} — ${v.isim} ${Math.abs(days)} gün gecikti!` });
+      else if (days <= 3) uyarilar.push({ tip: 'warn', mesaj: `${a.isim||a.kupe} — ${v.isim} ${days === 0 ? 'bugün!' : days + ' gün kaldı'}` });
+    });
+  });
+  getSuruTakvimi().forEach(item => {
+    const nd = takvimSonrakiTarih(item);
+    if (!nd) return;
+    const days = daysUntil(nd);
+    if (days < 0) uyarilar.push({ tip: 'danger', mesaj: `🐑 ${item.isim} sürü uygulaması ${Math.abs(days)} gün gecikti!` });
+    else if (days <= 3) uyarilar.push({ tip: 'warn', mesaj: `🐑 ${item.isim} ${days === 0 ? 'bugün!' : days + ' gün kaldı'}` });
+  });
+  animals.filter(a => a.tur === 'koyun' && a.gebelik?.katimTarihi).forEach(a => {
+    const tahminiDogum = new Date(a.gebelik.katimTarihi);
+    tahminiDogum.setDate(tahminiDogum.getDate() + 150);
+    const dogumStr = tahminiDogum.toISOString().slice(0,10);
+    const days = daysUntil(dogumStr);
+    if (days >= 0 && days <= 7) uyarilar.push({ tip: 'info', mesaj: `🐣 ${a.isim||a.kupe} doğum yapabilir — ${days === 0 ? 'bugün!' : days + ' gün kaldı'}` });
+  });
+  if (uyarilar.length === 0) return;
+  document.getElementById('gunlukOzetTarih').textContent = bugun;
+  document.getElementById('gunlukOzetIcerik').innerHTML = uyarilar.map(u => `
+    <div class="ozet-item">
+      <span style="color:${u.tip === 'danger' ? 'var(--danger)' : u.tip === 'warn' ? 'var(--warn)' : 'var(--accent)'};">
+        ${u.tip === 'danger' ? '🔴' : u.tip === 'warn' ? '🟡' : '🟢'} ${u.mesaj}
+      </span>
+    </div>`).join('');
+  document.getElementById('gunlukOzetPopup').classList.add('open');
+}
+
+function gunlukOzetKapat() {
+  localStorage.setItem('gunluk_ozet_' + today(), '1');
+  document.getElementById('gunlukOzetPopup').classList.remove('open');
+}
+
+// ===== HAFTALIK MALİ ÖZET =====
+function haftalikMaliGoster() {
+  const bugun = new Date();
+  if (bugun.getDay() !== 1) return; // Sadece Pazartesi
+  const haftaKey = 'haftalik_mali_' + today();
+  if (localStorage.getItem(haftaKey)) return;
+  const gecenHaftaBas = new Date(bugun);
+  gecenHaftaBas.setDate(gecenHaftaBas.getDate() - 7);
+  const gecenHaftaBit = new Date(bugun);
+  gecenHaftaBit.setDate(gecenHaftaBit.getDate() - 1);
+  const basStr = gecenHaftaBas.toISOString().slice(0,10);
+  const bitStr = gecenHaftaBit.toISOString().slice(0,10);
+  const giderler = getGiderler().filter(g => g.tarih >= basStr && g.tarih <= bitStr);
+  const toplamGider = giderler.reduce((s, g) => s + g.tutar, 0);
+  const gelirler = animals.filter(a => a.durumTarih >= basStr && a.durumTarih <= bitStr && (a.durum === 'satildi' || a.durum === 'kesildi'));
+  const toplamGelir = gelirler.reduce((s, a) => s + (a.durumFiyat || 0), 0);
+  document.getElementById('haftalikMaliOzet').innerHTML = `
+    <div class="ozet-bolum">
+      <div class="ozet-bolum-baslik">Geçen Hafta (${basStr} — ${bitStr})</div>
+      <div class="ozet-item"><span>💰 Gelir</span><span style="color:var(--accent);font-weight:700;">${toplamGelir.toLocaleString('tr-TR')} ₺</span></div>
+      <div class="ozet-item"><span>📤 Gider</span><span style="color:var(--danger);font-weight:700;">${toplamGider.toLocaleString('tr-TR')} ₺</span></div>
+      <div class="ozet-item"><span>📊 Net</span><span style="color:${toplamGelir-toplamGider >= 0 ? 'var(--accent)' : 'var(--danger)'};font-weight:700;">${(toplamGelir-toplamGider).toLocaleString('tr-TR')} ₺</span></div>
+    </div>`;
+  document.getElementById('haftalikMaliPopup').classList.add('open');
+}
+
+function haftalikMaliKaydet() {
+  const yem = parseFloat(document.getElementById('gider_yem').value) || 0;
+  const ilac = parseFloat(document.getElementById('gider_ilac').value) || 0;
+  const vet = parseFloat(document.getElementById('gider_vet').value) || 0;
+  const diger = parseFloat(document.getElementById('gider_diger').value) || 0;
+  const not = document.getElementById('gider_not').value.trim();
+  const list = getGiderler();
+  const tarih = today();
+  if (yem > 0) list.push({ id: genId(), tarih, kategori: 'yem', tutar: yem, not, olusturma: today() });
+  if (ilac > 0) list.push({ id: genId(), tarih, kategori: 'ilac', tutar: ilac, not, olusturma: today() });
+  if (vet > 0) list.push({ id: genId(), tarih, kategori: 'vet', tutar: vet, not, olusturma: today() });
+  if (diger > 0) list.push({ id: genId(), tarih, kategori: 'diger', tutar: diger, not, olusturma: today() });
+  if (yem + ilac + vet + diger > 0) { saveGiderler(list); showToast('✓ Giderler kaydedildi!'); }
+  haftalikMaliKapat();
+}
+
+function haftalikMaliKapat() {
+  localStorage.setItem('haftalik_mali_' + today(), '1');
+  document.getElementById('haftalikMaliPopup').classList.remove('open');
+  ['gider_yem','gider_ilac','gider_vet','gider_diger','gider_not'].forEach(id => document.getElementById(id).value = '');
+}
+
 function renderRaporPage() {
   // Varsayılan: son 6 ay
   if (!document.getElementById('rapor_bas').value) {
@@ -3329,6 +3609,41 @@ function renderRapor() {
 
     ${donemHayvanlar.length === 0 && dogenKuzular.length === 0 ? 
       '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Bu dönemde kayıt bulunamadı</div></div>' : ''}
+
+    <!-- Giderler -->
+    ${(() => {
+      const donemGiderler = getGiderler().filter(g => g.tarih >= bas && g.tarih <= bit);
+      if (donemGiderler.length === 0) return '';
+      const toplamGider = donemGiderler.reduce((s, g) => s + g.tutar, 0);
+      const kategoriler = {};
+      donemGiderler.forEach(g => { kategoriler[g.kategori] = (kategoriler[g.kategori] || 0) + g.tutar; });
+      const netKar = toplamGelir - toplamGider;
+      return `
+      <div class="sec-title">Giderler</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
+        ${Object.entries(kategoriler).map(([k,v]) => `
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.88rem;">
+            <span>${kategoriLabel[k]||k}</span>
+            <span style="font-family:'JetBrains Mono',monospace;color:var(--danger);">${v.toLocaleString('tr-TR')} ₺</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;">
+          <span>Toplam Gider</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:var(--danger);">${toplamGider.toLocaleString('tr-TR')} ₺</span>
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid ${netKar >= 0 ? 'var(--accent)' : 'var(--danger)'};border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.88rem;">
+          <span>Toplam Gelir</span><span style="color:var(--accent);">${toplamGelir.toLocaleString('tr-TR')} ₺</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:0.88rem;">
+          <span>Toplam Gider</span><span style="color:var(--danger);">-${toplamGider.toLocaleString('tr-TR')} ₺</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1rem;border-top:1px solid var(--border);padding-top:8px;">
+          <span>NET KAR/ZARAR</span>
+          <span style="color:${netKar >= 0 ? 'var(--accent)' : 'var(--danger)'};">${netKar >= 0 ? '+' : ''}${netKar.toLocaleString('tr-TR')} ₺</span>
+        </div>
+      </div>`;
+    })()}
   `;
 }
 
@@ -3771,11 +4086,15 @@ function migrateKupeNos() {
 }
 migrateKupeNos();
 otomatikTurGuncelle();
-navPagesGuncelle(); // Kayıtlı sekme sırası varsa uygula
+navPagesGuncelle();
 currentAnimalId = null;
 history.replaceState({ page: 'dashboard' }, '', '#dashboard');
 showPage('dashboard');
-setTimeout(() => bildirimKontrol(), 1000);
+setTimeout(() => {
+  bildirimKontrol();
+  gunlukOzetGoster();
+  haftalikMaliGoster();
+}, 1500);
 </script>
 
 </div> <!-- appScreen -->
