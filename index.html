@@ -1470,6 +1470,7 @@
         <div style="display:flex;gap:6px;margin-top:8px;">
           <input class="form-input" id="sg_yeni_isim" placeholder="Kategori adı (Elektrik, Su...)" style="flex:2;">
           <input class="form-input" id="sg_yeni_tutar" type="number" placeholder="₺/gün" style="flex:1;" step="0.01">
+          <input class="form-input" id="sg_yeni_tarih" type="date" style="flex:1.2;">
           <button onclick="sabitGiderEkle()" class="btn btn-sm" style="white-space:nowrap;">+ Ekle</button>
         </div>
         <button class="btn btn-sm" style="width:100%;margin-top:8px;" onclick="sabitGiderKaydet()">💾 Güncelle</button>
@@ -3426,6 +3427,20 @@ function sabitGiderToplamGunluk() {
   return (sg.kategoriler||[]).reduce((s, k) => s + (k.tutar||0), 0);
 }
 
+function sabitGiderToplamDonem(bas, bit) {
+  const sg = getSabitGiderler();
+  let toplam = 0;
+  (sg.kategoriler||[]).forEach(k => {
+    if (!k.tutar || k.tutar <= 0) return;
+    // Başlangıç tarihi varsa ve rapor döneminden sonraya denk geliyorsa o tarihten hesapla
+    const gercekBas = k.baslangic && k.baslangic > bas ? k.baslangic : bas;
+    if (gercekBas > bit) return; // Başlamadıysa sayma
+    const gunSayisi = Math.max(1, Math.round((new Date(bit) - new Date(gercekBas)) / 86400000) + 1);
+    toplam += k.tutar * gunSayisi;
+  });
+  return toplam;
+}
+
 function sabitGiderGosterFunc() {
   const sg = getSabitGiderler();
   const toplam = sabitGiderToplamGunluk();
@@ -3435,7 +3450,7 @@ function sabitGiderGosterFunc() {
   }
   document.getElementById('sabitGiderGoster').innerHTML = sg.kategoriler.map(k => `
     <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:3px 0;">
-      <span style="color:var(--text2);">${k.isim}</span>
+      <span style="color:var(--text2);">${k.isim}${k.baslangic ? ` <span style="font-size:0.68rem;">(${k.baslangic}'dan)</span>` : ''}</span>
       <span style="font-family:'JetBrains Mono',monospace;">${k.tutar.toLocaleString('tr-TR')} ₺/gün</span>
     </div>`).join('') + `
     <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:4px 0;border-top:1px solid var(--border);margin-top:4px;font-weight:600;">
@@ -3461,12 +3476,19 @@ function toggleSabitGiderDuzenle() {
 
 function renderSabitKategoriListesi() {
   document.getElementById('sabitKategoriListesi').innerHTML = _tempSabitKategoriler.map((k, i) => `
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-      <span style="flex:2;font-size:0.85rem;">${k.isim}</span>
-      <input type="number" value="${k.tutar}" onchange="_tempSabitKategoriler[${i}].tutar=parseFloat(this.value)||0" 
-        style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.8rem;outline:none;" step="0.01">
-      <span style="font-size:0.72rem;color:var(--text2);">₺/gün</span>
-      <button onclick="sabitKategoriSil(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.9rem;">🗑️</button>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span style="flex:2;font-size:0.85rem;font-weight:600;">${k.isim}</span>
+        <input type="number" value="${k.tutar}" onchange="_tempSabitKategoriler[${i}].tutar=parseFloat(this.value)||0" 
+          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.78rem;outline:none;" step="0.01">
+        <span style="font-size:0.68rem;color:var(--text2);">₺/gün</span>
+        <button onclick="sabitKategoriSil(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.9rem;">🗑️</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:0.68rem;color:var(--text2);font-family:'JetBrains Mono',monospace;white-space:nowrap;">Başlangıç:</span>
+        <input type="date" value="${k.baslangic||''}" onchange="_tempSabitKategoriler[${i}].baslangic=this.value"
+          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.72rem;outline:none;">
+      </div>
     </div>`).join('');
 }
 
@@ -3478,10 +3500,12 @@ function sabitKategoriSil(idx) {
 function sabitGiderEkle() {
   const isim = document.getElementById('sg_yeni_isim').value.trim();
   const tutar = parseFloat(document.getElementById('sg_yeni_tutar').value) || 0;
+  const baslangic = document.getElementById('sg_yeni_tarih').value || today();
   if (!isim) { showToast('Kategori adı gerekli!'); return; }
-  _tempSabitKategoriler.push({ isim, tutar });
+  _tempSabitKategoriler.push({ isim, tutar, baslangic });
   document.getElementById('sg_yeni_isim').value = '';
   document.getElementById('sg_yeni_tutar').value = '';
+  document.getElementById('sg_yeni_tarih').value = '';
   renderSabitKategoriListesi();
 }
 
@@ -3691,7 +3715,7 @@ function haftalikMaliGoster() {
   // Sabit giderleri de hesapla
   const sg = getSabitGiderler();
   const gunSayisi = Math.round((new Date(bitStr) - new Date(basStr)) / 86400000) + 1;
-  const sabitToplamGider = sabitGiderToplamGunluk() * gunSayisi;
+  const sabitToplamGider = sabitGiderToplamDonem(basStr, bitStr);
 
   const gelirler = animals.filter(a => a.durumTarih >= basStr && a.durumTarih <= bitStr && (a.durum === 'satildi' || a.durum === 'kesildi'));
   const toplamGelir = gelirler.reduce((s, a) => s + (a.durumFiyat || 0), 0);
@@ -3881,7 +3905,7 @@ function renderRapor() {
       const manuelGelirler = getGelirler().filter(g => g.tarih >= bas && g.tarih <= bit);
       const sg = getSabitGiderler();
       const gunSayisi = Math.max(1, Math.round((new Date(bit) - new Date(bas)) / 86400000) + 1);
-      const sabitToplamGider = sabitGiderToplamGunluk() * gunSayisi;
+      const sabitToplamGider = sabitGiderToplamDonem(bas, bit);
       const ekGiderToplamı = donemGiderler.reduce((s, g) => s + g.tutar, 0);
       const toplamTumGider = ekGiderToplamı + sabitToplamGider;
       const toplamManuelGelir = manuelGelirler.reduce((s, g) => s + g.tutar, 0);
@@ -3896,7 +3920,7 @@ function renderRapor() {
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
         ${sabitToplamGider > 0 ? `
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.88rem;">
-            <span>🌾 Sabit Gider (${gunSayisi} gün × ${((sg.yem||0)+(sg.diger||0)).toLocaleString('tr-TR')}₺)</span>
+            <span>📆 Sabit Giderler (${gunSayisi} gün)</span>
             <span style="font-family:'JetBrains Mono',monospace;color:var(--danger);">${sabitToplamGider.toLocaleString('tr-TR')} ₺</span>
           </div>` : ''}
         ${Object.entries(kategoriler).map(([k,v]) => `
