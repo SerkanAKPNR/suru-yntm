@@ -1466,15 +1466,11 @@
       </div>
       <div id="sabitGiderGoster"></div>
       <div id="sabitGiderForm" style="display:none;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Yem (₺/gün)</label>
-            <input class="form-input" id="sg_yem" type="number" placeholder="0" step="0.01">
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Diğer (₺/gün)</label>
-            <input class="form-input" id="sg_diger" type="number" placeholder="0" step="0.01">
-          </div>
+        <div id="sabitKategoriListesi" style="margin-top:8px;"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <input class="form-input" id="sg_yeni_isim" placeholder="Kategori adı (Elektrik, Su...)" style="flex:2;">
+          <input class="form-input" id="sg_yeni_tutar" type="number" placeholder="₺/gün" style="flex:1;" step="0.01">
+          <button onclick="sabitGiderEkle()" class="btn btn-sm" style="white-space:nowrap;">+ Ekle</button>
         </div>
         <button class="btn btn-sm" style="width:100%;margin-top:8px;" onclick="sabitGiderKaydet()">💾 Güncelle</button>
       </div>
@@ -3410,52 +3406,140 @@ function navPagesGuncelle() {
 
 // ===== SABİT GİDERLER =====
 function getSabitGiderler() {
-  try { return JSON.parse(localStorage.getItem('sabit_giderler') || '{"yem":0,"diger":0,"guncelleme":""}'); } catch(e) { return {yem:0,diger:0,guncelleme:''}; }
+  try { 
+    const kayitli = JSON.parse(localStorage.getItem('sabit_giderler_v2') || 'null');
+    if (kayitli) return kayitli;
+    // Eski format migration
+    const eski = JSON.parse(localStorage.getItem('sabit_giderler') || 'null');
+    if (eski) {
+      const yeni = { kategoriler: [], guncelleme: eski.guncelleme || '' };
+      if (eski.yem > 0) yeni.kategoriler.push({ isim: 'Yem', tutar: eski.yem });
+      if (eski.diger > 0) yeni.kategoriler.push({ isim: 'Diğer', tutar: eski.diger });
+      return yeni;
+    }
+    return { kategoriler: [], guncelleme: '' };
+  } catch(e) { return { kategoriler: [], guncelleme: '' }; }
+}
+
+function sabitGiderToplamGunluk() {
+  const sg = getSabitGiderler();
+  return (sg.kategoriler||[]).reduce((s, k) => s + (k.tutar||0), 0);
 }
 
 function sabitGiderGosterFunc() {
   const sg = getSabitGiderler();
-  const toplamGunluk = (sg.yem||0) + (sg.diger||0);
-  document.getElementById('sabitGiderGoster').innerHTML = toplamGunluk > 0 ? `
+  const toplam = sabitGiderToplamGunluk();
+  if (!sg.kategoriler || sg.kategoriler.length === 0) {
+    document.getElementById('sabitGiderGoster').innerHTML = '<div style="font-size:0.82rem;color:var(--text2);">Henüz girilmemiş — Düzenle butonuna bas</div>';
+    return;
+  }
+  document.getElementById('sabitGiderGoster').innerHTML = sg.kategoriler.map(k => `
     <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:3px 0;">
-      <span style="color:var(--text2);">🌾 Yem</span>
-      <span style="font-family:'JetBrains Mono',monospace;">${(sg.yem||0).toLocaleString('tr-TR')} ₺/gün</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:3px 0;">
-      <span style="color:var(--text2);">📦 Diğer</span>
-      <span style="font-family:'JetBrains Mono',monospace;">${(sg.diger||0).toLocaleString('tr-TR')} ₺/gün</span>
-    </div>
+      <span style="color:var(--text2);">${k.isim}</span>
+      <span style="font-family:'JetBrains Mono',monospace;">${k.tutar.toLocaleString('tr-TR')} ₺/gün</span>
+    </div>`).join('') + `
     <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:4px 0;border-top:1px solid var(--border);margin-top:4px;font-weight:600;">
       <span>Toplam</span>
-      <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${toplamGunluk.toLocaleString('tr-TR')} ₺/gün</span>
+      <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${toplam.toLocaleString('tr-TR')} ₺/gün</span>
     </div>
-    ${sg.guncelleme ? `<div style="font-size:0.68rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:4px;">Son güncelleme: ${sg.guncelleme}</div>` : ''}
-  ` : '<div style="font-size:0.82rem;color:var(--text2);">Henüz girilmemiş — Düzenle butonuna bas</div>';
+    ${sg.guncelleme ? `<div style="font-size:0.68rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:4px;">Son güncelleme: ${sg.guncelleme}</div>` : ''}`;
 }
+
+let _tempSabitKategoriler = [];
 
 function toggleSabitGiderDuzenle() {
   const form = document.getElementById('sabitGiderForm');
-  const sg = getSabitGiderler();
   const acik = form.style.display !== 'none';
   form.style.display = acik ? 'none' : 'block';
   document.getElementById('sabitDuzenleBtn').textContent = acik ? '✏️ Düzenle' : '✕ Kapat';
   if (!acik) {
-    document.getElementById('sg_yem').value = sg.yem || '';
-    document.getElementById('sg_diger').value = sg.diger || '';
+    const sg = getSabitGiderler();
+    _tempSabitKategoriler = JSON.parse(JSON.stringify(sg.kategoriler||[]));
+    renderSabitKategoriListesi();
   }
 }
 
+function renderSabitKategoriListesi() {
+  document.getElementById('sabitKategoriListesi').innerHTML = _tempSabitKategoriler.map((k, i) => `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <span style="flex:2;font-size:0.85rem;">${k.isim}</span>
+      <input type="number" value="${k.tutar}" onchange="_tempSabitKategoriler[${i}].tutar=parseFloat(this.value)||0" 
+        style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.8rem;outline:none;" step="0.01">
+      <span style="font-size:0.72rem;color:var(--text2);">₺/gün</span>
+      <button onclick="sabitKategoriSil(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.9rem;">🗑️</button>
+    </div>`).join('');
+}
+
+function sabitKategoriSil(idx) {
+  _tempSabitKategoriler.splice(idx, 1);
+  renderSabitKategoriListesi();
+}
+
+function sabitGiderEkle() {
+  const isim = document.getElementById('sg_yeni_isim').value.trim();
+  const tutar = parseFloat(document.getElementById('sg_yeni_tutar').value) || 0;
+  if (!isim) { showToast('Kategori adı gerekli!'); return; }
+  _tempSabitKategoriler.push({ isim, tutar });
+  document.getElementById('sg_yeni_isim').value = '';
+  document.getElementById('sg_yeni_tutar').value = '';
+  renderSabitKategoriListesi();
+}
+
 function sabitGiderKaydet() {
-  const sg = {
-    yem: parseFloat(document.getElementById('sg_yem').value) || 0,
-    diger: parseFloat(document.getElementById('sg_diger').value) || 0,
-    guncelleme: today()
-  };
-  localStorage.setItem('sabit_giderler', JSON.stringify(sg));
+  const sg = { kategoriler: _tempSabitKategoriler, guncelleme: today() };
+  localStorage.setItem('sabit_giderler_v2', JSON.stringify(sg));
   document.getElementById('sabitGiderForm').style.display = 'none';
   document.getElementById('sabitDuzenleBtn').textContent = '✏️ Düzenle';
   sabitGiderGosterFunc();
   showToast('✓ Sabit giderler güncellendi!');
+}
+
+// ===== GELİR GİDER EXCEL EXPORT =====
+function gelirGiderExcelExport(bas, bit) {
+  if (typeof XLSX === 'undefined') { showToast('⚠️ İnternet bağlantısı gerekli!'); return; }
+  if (!confirm(`${bas} — ${bit} dönemi gelir/gider raporu Excel olarak indirilsin mi?`)) return;
+
+  const wb = XLSX.utils.book_new();
+
+  // Gelirler sayfası
+  const gelirData = [['Tarih','Kategori','Tutar (₺)','Not']];
+  // Hayvan gelirleri
+  animals.filter(a => a.durumTarih >= bas && a.durumTarih <= bit && (a.durum==='satildi'||a.durum==='kesildi') && a.durumFiyat).forEach(a => {
+    gelirData.push([a.durumTarih, a.durum==='satildi'?'Hayvan Satışı':'Kesim', a.durumFiyat, a.isim||a.kupe]);
+  });
+  // Manuel gelirler
+  getGelirler().filter(g => g.tarih >= bas && g.tarih <= bit).forEach(g => {
+    gelirData.push([g.tarih, gelirKategoriLabel[g.kategori]||g.kategori, g.tutar, g.not||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gelirData), 'Gelirler');
+
+  // Giderler sayfası
+  const giderData = [['Tarih','Kategori','Tutar (₺)','Not']];
+  // Sabit giderler
+  const gunSayisi = Math.max(1, Math.round((new Date(bit) - new Date(bas)) / 86400000) + 1);
+  const sg = getSabitGiderler();
+  (sg.kategoriler||[]).forEach(k => {
+    if (k.tutar > 0) giderData.push([`${bas} — ${bit}`, k.isim + ' (sabit)', k.tutar * gunSayisi, `${gunSayisi} gün × ${k.tutar} ₺/gün`]);
+  });
+  // Tek seferlik giderler
+  getGiderler().filter(g => g.tarih >= bas && g.tarih <= bit).forEach(g => {
+    giderData.push([g.tarih, kategoriLabel[g.kategori]||g.kategori, g.tutar, g.not||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(giderData), 'Giderler');
+
+  // Özet sayfası
+  const toplamGelir = gelirData.slice(1).reduce((s, r) => s + (r[2]||0), 0);
+  const toplamGider = giderData.slice(1).reduce((s, r) => s + (r[2]||0), 0);
+  const ozet = [
+    ['Dönem', `${bas} — ${bit}`],
+    ['Toplam Gelir', toplamGelir],
+    ['Toplam Gider', toplamGider],
+    ['Net Kar/Zarar', toplamGelir - toplamGider]
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ozet), 'Özet');
+
+  XLSX.writeFile(wb, `gelir_gider_${bas}_${bit}.xlsx`);
+  showToast('✓ Excel indirildi!');
 }
 
 // ===== GELİR TAKİBİ =====
@@ -3607,7 +3691,7 @@ function haftalikMaliGoster() {
   // Sabit giderleri de hesapla
   const sg = getSabitGiderler();
   const gunSayisi = Math.round((new Date(bitStr) - new Date(basStr)) / 86400000) + 1;
-  const sabitToplamGider = ((sg.yem||0) + (sg.diger||0)) * gunSayisi;
+  const sabitToplamGider = sabitGiderToplamGunluk() * gunSayisi;
 
   const gelirler = animals.filter(a => a.durumTarih >= basStr && a.durumTarih <= bitStr && (a.durum === 'satildi' || a.durum === 'kesildi'));
   const toplamGelir = gelirler.reduce((s, a) => s + (a.durumFiyat || 0), 0);
@@ -3742,10 +3826,10 @@ function renderRapor() {
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-      <div class="stat-card" style="padding:14px 12px;">
-        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">TOPLAM GELİR</div>
+      <div class="stat-card" style="padding:14px 12px;cursor:pointer;" onclick="gelirGiderExcelExport('${bas}','${bit}')" title="Excel olarak dışa aktar">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">TOPLAM GELİR 📊</div>
         <div style="font-size:1.6rem;font-weight:700;color:var(--accent);line-height:1;">${toplamGelir > 0 ? toplamGelir.toLocaleString('tr-TR') + ' ₺' : '—'}</div>
-        ${kgFiyat ? `<div style="font-size:0.7rem;color:var(--text2);margin-top:4px;">${kgFiyat} ₺/kg ortalama</div>` : ''}
+        ${kgFiyat ? `<div style="font-size:0.7rem;color:var(--text2);margin-top:4px;">${kgFiyat} ₺/kg • Excel için tıkla</div>` : '<div style="font-size:0.7rem;color:var(--text2);margin-top:4px;">Excel için tıkla</div>'}
       </div>
       <div class="stat-card" style="padding:14px 12px;">
         <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORTALAMA GCAA</div>
@@ -3797,7 +3881,7 @@ function renderRapor() {
       const manuelGelirler = getGelirler().filter(g => g.tarih >= bas && g.tarih <= bit);
       const sg = getSabitGiderler();
       const gunSayisi = Math.max(1, Math.round((new Date(bit) - new Date(bas)) / 86400000) + 1);
-      const sabitToplamGider = ((sg.yem||0) + (sg.diger||0)) * gunSayisi;
+      const sabitToplamGider = sabitGiderToplamGunluk() * gunSayisi;
       const ekGiderToplamı = donemGiderler.reduce((s, g) => s + g.tutar, 0);
       const toplamTumGider = ekGiderToplamı + sabitToplamGider;
       const toplamManuelGelir = manuelGelirler.reduce((s, g) => s + g.tutar, 0);
