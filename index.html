@@ -3723,6 +3723,8 @@ window.misafirCikis = function() {
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('headerRight').innerHTML = `<button onclick="showPage('ayarlar')" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:0.8rem;cursor:pointer;">⚙️</button>`;
 };
+
+window.emailGiris = function() {
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPassword').value;
   const err = document.getElementById('loginError');
