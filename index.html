@@ -639,8 +639,11 @@
     <button class="btn" onclick="disaAktar()" style="width:100%;padding:14px;font-size:1rem;">
       📤 Verileri Dışa Aktar (Excel)
     </button>
+    <button class="btn btn-outline" onclick="demoJsonOlustur()" style="width:100%;padding:14px;font-size:1rem;border-color:var(--accent);color:var(--accent);">
+      📋 Misafir Demo Verisi Oluştur
+    </button>
     <div style="font-size:0.78rem;color:var(--text2);padding:0 4px;">
-      Tüm hayvan, aşı ve ağırlık verilerini Excel dosyasına aktarır.
+      Misafir modunda gösterilecek demo veriyi panoya kopyalar.
     </div>
     <div style="height:1px;background:var(--border);margin:8px 0;"></div>
     <div class="form-group">
@@ -661,10 +664,22 @@
       Mevcut kuzuların anne bilgisine göre doğum kayıtlarını otomatik tamamlar.
     </div>
     <div style="height:1px;background:var(--border);margin:8px 0;"></div>
+    <button class="btn btn-outline" onclick="tumVerileriSil()" style="width:100%;padding:14px;font-size:1rem;border-color:var(--danger);color:var(--danger);">
+      🗑️ Tüm Verileri Sil
+    </button>
     <div style="font-size:0.78rem;color:var(--text2);padding:0 4px;">
       Dikkat: Bu işlem geri alınamaz!
     </div>
   </div>
+
+  <!-- SEKME SIRASI -->
+  <div class="sec-title">Sekme Sırası</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
+    <div style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:10px;">Yukarı/aşağı okları ile sekmeleri sırala:</div>
+    <div id="sekmeListesi"></div>
+    <button class="btn" style="width:100%;margin-top:10px;" onclick="sekmeSirasiniKaydet()">💾 Kaydet</button>
+  </div>
+
   <div class="sec-title">Uygulama Hakkında</div>
   <div class="detail-card">
     <div class="detail-row"><span class="detail-key">Versiyon</span><span class="detail-val">v2026.03.15-v15</span></div>
@@ -1361,7 +1376,7 @@ function showPage(page) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   // Sadece nav'daki butonlar: dashboard, animals, takvim, rapor, reminders, gecmis
-  const navPages = ['dashboard','animals','takvim','rapor','reminders','gecmis'];
+  const navPages = window._navPages || ['dashboard','animals','takvim','rapor','reminders','gecmis'];
   const idx = navPages.indexOf(page);
   if (idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
   document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim','reminders','rapor'].includes(page) || misafirModu ? 'none' : 'flex';
@@ -2781,6 +2796,7 @@ function renderAyarlar() {
   const gecmis = animals.filter(a => a.durum && a.durum !== 'hayatta').length;
   document.getElementById('ayarlarToplam').textContent = aktif + ' aktif hayvan';
   document.getElementById('ayarlarGecmis').textContent = gecmis + ' kayıt';
+  renderSekmeListesi();
 }
 
 function tumVerileriSil() {
@@ -3049,7 +3065,97 @@ async function readKupeFromPhoto(event) {
   }, { passive: true });
 })();
 
-// ===== DÖNEM RAPORU =====
+// ===== DEMO JSON =====
+function demoJsonOlustur() {
+  const demo = {
+    animals: animals,
+    suruTakvim: getSuruTakvimi()
+  };
+  const json = JSON.stringify(demo);
+  navigator.clipboard.writeText(json).then(() => {
+    showToast('✓ Demo verisi panoya kopyalandı!');
+  }).catch(() => {
+    // Clipboard API çalışmazsa alert ile göster
+    const el = document.createElement('textarea');
+    el.value = json;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast('✓ Demo verisi kopyalandı!');
+  });
+}
+
+// ===== SEKME SIRASI =====
+const varsayilanSekmeler = [
+  { id: 'dashboard', label: 'Ana Sayfa' },
+  { id: 'animals', label: 'Hayvanlar' },
+  { id: 'takvim', label: '📅 Takvim' },
+  { id: 'rapor', label: '📊 Rapor' },
+  { id: 'reminders', label: 'Hatırlatıcılar' },
+  { id: 'gecmis', label: 'Geçmiş' }
+];
+
+function getSekmeSirasi() {
+  try {
+    const kayitli = JSON.parse(localStorage.getItem('sekme_sirasi') || 'null');
+    if (kayitli && kayitli.length === varsayilanSekmeler.length) return kayitli;
+  } catch(e) {}
+  return varsayilanSekmeler;
+}
+
+function renderSekmeListesi() {
+  const sirali = getSekmeSirasi();
+  document.getElementById('sekmeListesi').innerHTML = sirali.map((s, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+      <span style="flex:1;font-size:0.9rem;">${s.label}</span>
+      <button onclick="sekmeYukar(${i})" ${i === 0 ? 'disabled' : ''} style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:${i === 0 ? 'var(--border)' : 'var(--accent)'};cursor:${i === 0 ? 'default' : 'pointer'};">▲</button>
+      <button onclick="sekmeAsagi(${i})" ${i === sirali.length-1 ? 'disabled' : ''} style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:${i === sirali.length-1 ? 'var(--border)' : 'var(--accent)'};cursor:${i === sirali.length-1 ? 'default' : 'pointer'};">▼</button>
+    </div>`).join('');
+}
+
+function sekmeYukar(idx) {
+  const sirali = getSekmeSirasi();
+  if (idx === 0) return;
+  [sirali[idx-1], sirali[idx]] = [sirali[idx], sirali[idx-1]];
+  localStorage.setItem('sekme_sirasi', JSON.stringify(sirali));
+  renderSekmeListesi();
+}
+
+function sekmeAsagi(idx) {
+  const sirali = getSekmeSirasi();
+  if (idx === sirali.length-1) return;
+  [sirali[idx], sirali[idx+1]] = [sirali[idx+1], sirali[idx]];
+  localStorage.setItem('sekme_sirasi', JSON.stringify(sirali));
+  renderSekmeListesi();
+}
+
+function sekmeSirasiniKaydet() {
+  const sirali = getSekmeSirasi();
+  // Nav'ı güncelle
+  const nav = document.querySelector('.nav');
+  nav.innerHTML = sirali.map(s => 
+    `<button class="nav-btn" onclick="showPage('${s.id}')">${s.label}</button>`
+  ).join('');
+  // navPages'i güncelle
+  window._navPages = sirali.map(s => s.id);
+  showToast('✓ Sekme sırası kaydedildi!');
+  // Aktif sayfayı tekrar işaretle
+  document.querySelectorAll('.nav-btn').forEach((b, i) => {
+    if (sirali[i].id === currentPage) b.classList.add('active');
+  });
+}
+
+function navPagesGuncelle() {
+  const kayitli = getSekmeSirasi();
+  window._navPages = kayitli.map(s => s.id);
+  const nav = document.querySelector('.nav');
+  nav.innerHTML = kayitli.map(s => 
+    `<button class="nav-btn" onclick="showPage('${s.id}')">${s.label}</button>`
+  ).join('');
+}
+
+
 function renderRaporPage() {
   // Varsayılan: son 6 ay
   if (!document.getElementById('rapor_bas').value) {
@@ -3629,8 +3735,8 @@ function migrateKupeNos() {
 }
 migrateKupeNos();
 otomatikTurGuncelle();
+navPagesGuncelle(); // Kayıtlı sekme sırası varsa uygula
 currentAnimalId = null;
-// İlk history state'i koy
 history.replaceState({ page: 'dashboard' }, '', '#dashboard');
 showPage('dashboard');
 setTimeout(() => bildirimKontrol(), 1000);
