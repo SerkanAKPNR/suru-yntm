@@ -3539,11 +3539,14 @@ function gelirGiderExcelExport(bas, bit) {
 
   // Giderler sayfası
   const giderData = [['Tarih','Kategori','Tutar (₺)','Not']];
-  // Sabit giderler
-  const gunSayisi = Math.max(1, Math.round((new Date(bit) - new Date(bas)) / 86400000) + 1);
+  // Sabit giderler — başlangıç tarihine göre
   const sg = getSabitGiderler();
   (sg.kategoriler||[]).forEach(k => {
-    if (k.tutar > 0) giderData.push([`${bas} — ${bit}`, k.isim + ' (sabit)', k.tutar * gunSayisi, `${gunSayisi} gün × ${k.tutar} ₺/gün`]);
+    if (!k.tutar || k.tutar <= 0) return;
+    const gercekBas = k.baslangic && k.baslangic > bas ? k.baslangic : bas;
+    if (gercekBas > bit) return;
+    const gunSayisi = Math.max(1, Math.round((new Date(bit) - new Date(gercekBas)) / 86400000) + 1);
+    giderData.push([`${gercekBas} — ${bit}`, k.isim + ' (sabit)', k.tutar * gunSayisi, `${gunSayisi} gün × ${k.tutar} ₺/gün${k.baslangic ? ' (başlangıç: '+k.baslangic+')' : ''}`]);
   });
   // Tek seferlik giderler
   getGiderler().filter(g => g.tarih >= bas && g.tarih <= bit).forEach(g => {
