@@ -528,7 +528,8 @@
     <input id="loginEmail" type="email" placeholder="E-posta" style="width:100%;background:#1a1f10;border:1px solid #2e3a1a;border-radius:8px;padding:12px;color:#e8f0d0;font-size:1rem;margin-bottom:10px;outline:none;">
     <input id="loginPassword" type="password" placeholder="Şifre (min 6 karakter)" style="width:100%;background:#1a1f10;border:1px solid #2e3a1a;border-radius:8px;padding:12px;color:#e8f0d0;font-size:1rem;margin-bottom:10px;outline:none;">
     <button onclick="emailGiris()" style="background:#8fbe3c;color:#0f1209;border:none;border-radius:10px;padding:14px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:8px;">Giriş Yap</button>
-    <button onclick="emailKayit()" style="background:none;color:#8fbe3c;border:1px solid #8fbe3c;border-radius:10px;padding:12px;font-size:0.9rem;cursor:pointer;width:100%;">İlk kez? Kayıt Ol</button>
+    <button onclick="emailKayit()" style="background:none;color:#8fbe3c;border:1px solid #8fbe3c;border-radius:10px;padding:12px;font-size:0.9rem;cursor:pointer;width:100%;margin-bottom:8px;">İlk kez? Kayıt Ol</button>
+    <button onclick="misafirGiris()" style="background:none;color:#8a9870;border:1px solid #2e3a1a;border-radius:10px;padding:12px;font-size:0.9rem;cursor:pointer;width:100%;">👁️ Misafir Olarak Gir</button>
   </div>
   <div id="loginError" style="color:#e05a3a;font-size:0.82rem;margin-top:14px;text-align:center;max-width:300px;"></div>
 </div>
@@ -548,10 +549,10 @@
 <nav class="nav">
   <button class="nav-btn" onclick="showPage('dashboard')">Ana Sayfa</button>
   <button class="nav-btn" onclick="showPage('animals')">Hayvanlar</button>
-  <button class="nav-btn" onclick="showPage('gecmis')">Geçmiş</button>
   <button class="nav-btn" onclick="showPage('takvim')">📅 Takvim</button>
   <button class="nav-btn" onclick="showPage('rapor')">📊 Rapor</button>
   <button class="nav-btn" onclick="showPage('reminders')">Hatırlatıcılar</button>
+  <button class="nav-btn" onclick="showPage('gecmis')">Geçmiş</button>
 </nav>
 
 <!-- DASHBOARD -->
@@ -1311,8 +1312,10 @@
 let animals = (() => { try { return JSON.parse(localStorage.getItem('ciftlik_animals') || '[]') || []; } catch(e) { localStorage.removeItem('ciftlik_animals'); return []; } })();
 let currentAnimalId = null;
 let currentFilter = 'hepsi';
+let misafirModu = false;
 
 function save() {
+  if (misafirModu) return; // Misafir modunda kaydetme!
   localStorage.setItem('ciftlik_animals', JSON.stringify(animals));
   if (window._firebaseSave) window._firebaseSave(animals);
 }
@@ -1357,11 +1360,11 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  // Sadece nav'daki butonlar: dashboard, animals, gecmis, takvim, rapor, reminders
-  const navPages = ['dashboard','animals','gecmis','takvim','rapor','reminders'];
+  // Sadece nav'daki butonlar: dashboard, animals, takvim, rapor, reminders, gecmis
+  const navPages = ['dashboard','animals','takvim','rapor','reminders','gecmis'];
   const idx = navPages.indexOf(page);
   if (idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
-  document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim','reminders','rapor'].includes(page) ? 'none' : 'flex';
+  document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim','reminders','rapor'].includes(page) || misafirModu ? 'none' : 'flex';
   currentPage = page;
   if (page === 'dashboard') renderDashboard();
   if (page === 'animals') renderAnimals();
@@ -1865,12 +1868,14 @@ function renderDetail() {
   </div>`;
 
   html += `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+    ${misafirModu ? '<div style="text-align:center;width:100%;padding:10px;font-size:0.8rem;font-family:\'JetBrains Mono\',monospace;color:var(--warn);">👁️ Misafir modunda düzenleme yapılamaz</div>' : `
     <button class="btn" style="flex:1;min-width:100px;" onclick="openEditModal('${a.id}')">✏️ Düzenle</button>
     ${a.oldu ?
       `<button class="btn btn-outline" style="flex:1;min-width:100px;border-color:var(--accent);color:var(--accent);" onclick="toggleOldu('${a.id}')">♻️ Hayatta</button>` :
       `<button class="btn" style="flex:1;min-width:100px;background:var(--warn);color:var(--bg);" onclick="toggleOldu('${a.id}')">💀 Öldü</button>`
     }
     <button class="btn btn-danger" style="flex:1;min-width:100px;" onclick="deleteAnimal('${a.id}')">🗑️ Hayvanı Sil</button>
+    `}
   </div>`;
 
   document.getElementById('detailSections').innerHTML = html;
@@ -3008,7 +3013,7 @@ async function readKupeFromPhoto(event) {
 // ===== SWIPE NAVİGASYON =====
 (function() {
   let startX = 0, startY = 0;
-  const navPages = ['dashboard','animals','gecmis','takvim','rapor','reminders'];
+  const navPages = ['dashboard','animals','takvim','rapor','reminders','gecmis'];
   
   document.addEventListener('touchstart', e => {
     startX = e.touches[0].clientX;
@@ -3693,7 +3698,31 @@ window._firebaseSaveTakvim = function(data) {
   saveToFirebase();
 };
 
-window.emailGiris = function() {
+window.misafirGiris = function() {
+  misafirModu = true;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('headerSub').textContent = '👁️ Misafir Modu';
+  // Header'a misafir uyarısı ekle
+  document.getElementById('headerRight').innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center;">
+      <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--warn);background:rgba(224,169,58,0.15);padding:3px 8px;border-radius:6px;border:1px solid var(--warn);">👁️ MİSAFİR</div>
+      <button onclick="misafirCikis()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:0.8rem;cursor:pointer;">Çıkış</button>
+    </div>`;
+  // Demo verilerini yükle
+  fetch('https://raw.githubusercontent.com/serkanakpnr/suru-yntm/main/index.html')
+    .catch(() => {});
+  renderDashboard();
+  showPage('dashboard');
+};
+
+window.misafirCikis = function() {
+  misafirModu = false;
+  animals = [];
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('headerRight').innerHTML = `<button onclick="showPage('ayarlar')" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:0.8rem;cursor:pointer;">⚙️</button>`;
+};
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPassword').value;
   const err = document.getElementById('loginError');
