@@ -567,21 +567,10 @@
   <div id="dashReminders"><div style="color:var(--text2);font-size:0.85rem;padding:8px 0;">Yaklaşan aşı yok 👍</div></div>
   <div id="dashSuruUyari" style="margin-top:8px;"></div>
   <div id="dashGebelik" style="margin-top:8px;"></div>
-  <div id="dashStats2" style="margin-top:16px;">
-    <div class="sec-title">Son 3 Ay Doğum İstatistikleri</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-      <div class="stat-card" style="padding:16px 12px;">
-        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">DOĞAN KUZU</div>
-        <div style="font-size:2.2rem;font-weight:700;color:var(--kuzu);line-height:1;">11</div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">9 koyun doğurdu</div>
-      </div>
-      <div class="stat-card" style="padding:16px 12px;">
-        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">İKİZLİK ORANI</div>
-        <div style="font-size:2.2rem;font-weight:700;color:var(--warn);line-height:1;">%36</div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">4 ikiz/üçüz kuzu</div>
-      </div>
-    </div>
-  </div>
+  <!-- Gizli tarih aralığı inputları -->
+  <input type="hidden" id="istatBas">
+  <input type="hidden" id="istatBit">
+  <div id="dashStats2" style="margin-top:16px;"></div>
 </div>
 
 <!-- ANIMALS -->
@@ -1483,28 +1472,7 @@ function renderDashboard() {
     dashSuruUyari.innerHTML = '';
   }
 
-  // Doğum istatistikleri
-  const now = new Date();
-  const uc_ay_once = new Date(now);
-  uc_ay_once.setMonth(uc_ay_once.getMonth() - 3);
-
-  const sonDoganKuzular = animals.filter(a => {
-    if (!a.dogumTarihi) return false;
-    const d = new Date(a.dogumTarihi);
-    return d >= uc_ay_once && d <= now;
-  });
-  const doganKuzuSayisi = sonDoganKuzular.length;
-  const doguranAnneler = new Set(sonDoganKuzular.filter(a => a.anneId).map(a => a.anneId));
-  const doguranSayi = doguranAnneler.size;
-  const ikizDoguranAnneler = new Set();
-  sonDoganKuzular.forEach(a => {
-    const k = a.kardesTip || hesaplaKardes(a);
-    if (k && k !== 'Tek' && a.anneId) ikizDoguranAnneler.add(a.anneId);
-  });
-  const ikizOran = doguranSayi > 0 ? Math.round((ikizDoguranAnneler.size / doguranSayi) * 100) : 0;
-  const ikizKuzu = ikizDoguranAnneler.size;
-
-  // Gebelik uyarıları
+  // Doğum istatistikleri — tarih aralığı
   const gebeKoyunlar = animals.filter(a => 
     a.tur === 'koyun' && (!a.durum || a.durum === 'hayatta') && a.gebelik?.katimTarihi
   ).map(a => {
@@ -1532,12 +1500,45 @@ function renderDashboard() {
     dashGebelik.innerHTML = '';
   }
 
-  // GCAA hesapla (kuzular için)
-  const kuzularAgirlikli = animals.filter(a => 
-    a.tur === 'kuzu' && (!a.durum || a.durum === 'hayatta') && 
-    a.weights && a.weights.length >= 2
+  // Doğum istatistikleri — tarih aralığı
+  const istatBasEl = document.getElementById('istatBas');
+  const istatBitEl = document.getElementById('istatBit');
+  if (!istatBasEl.value) {
+    const uc_ay = new Date();
+    uc_ay.setMonth(uc_ay.getMonth() - 3);
+    istatBasEl.value = uc_ay.toISOString().slice(0,10);
+    istatBitEl.value = today();
+  }
+  const istatBas = new Date(istatBasEl.value);
+  const istatBit = new Date(istatBitEl.value);
+  istatBit.setHours(23,59,59);
+
+  const sonDoganKuzular = animals.filter(a => {
+    if (!a.dogumTarihi) return false;
+    const d = new Date(a.dogumTarihi);
+    return d >= istatBas && d <= istatBit;
+  });
+  const doganKuzuSayisi = sonDoganKuzular.length;
+  const doguranAnneler = new Set(sonDoganKuzular.filter(a => a.anneId).map(a => a.anneId));
+  const doguranSayi = doguranAnneler.size;
+  const ikizDoguranAnneler = new Set();
+  sonDoganKuzular.forEach(a => {
+    const k = a.kardesTip || hesaplaKardes(a);
+    if (k && k !== 'Tek' && a.anneId) ikizDoguranAnneler.add(a.anneId);
+  });
+  const ikizOran = doguranSayi > 0 ? Math.round((ikizDoguranAnneler.size / doguranSayi) * 100) : 0;
+  const ikizKuzu = ikizDoguranAnneler.size;
+
+  // Ortalama doğum ağırlığı
+  const agirlikliKuzular = sonDoganKuzular.filter(a => a.dogumAgirlik && parseFloat(a.dogumAgirlik) > 0);
+  const ortDogumAgirligi = agirlikliKuzular.length > 0
+    ? (agirlikliKuzular.reduce((s, a) => s + parseFloat(a.dogumAgirlik), 0) / agirlikliKuzular.length).toFixed(1)
+    : null;
+
+  // GCAA hesapla (seçili dönemde doğan kuzular için)
+  const kuzularAgirlikli = sonDoganKuzular.filter(a =>
+    (!a.durum || a.durum === 'hayatta') && a.weights && a.weights.length >= 2
   );
-  
   let gcaaOrtalama = null;
   if (kuzularAgirlikli.length > 0) {
     const gcaalar = kuzularAgirlikli.map(a => {
@@ -1545,35 +1546,55 @@ function renderDashboard() {
       const ilk = sortedW[0];
       const son = sortedW[sortedW.length - 1];
       const gunFark = Math.max(1, Math.round((new Date(son.tarih) - new Date(ilk.tarih)) / 86400000));
-      return ((son.agirlik - ilk.agirlik) * 1000) / gunFark; // kg → gram
+      return ((son.agirlik - ilk.agirlik) * 1000) / gunFark;
     }).filter(g => g > 0);
-    if (gcaalar.length > 0) {
-      gcaaOrtalama = (gcaalar.reduce((a,b) => a+b, 0) / gcaalar.length).toFixed(0);
-    }
+    if (gcaalar.length > 0) gcaaOrtalama = Math.round(gcaalar.reduce((a,b) => a+b, 0) / gcaalar.length);
   }
 
   document.getElementById('dashStats2').innerHTML = `
-    <div class="sec-title">Son 3 Ay Doğum İstatistikleri</div>
+    <div class="sec-title">Doğum İstatistikleri</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div style="flex:1;">
+          <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:4px;">BAŞLANGIÇ</div>
+          <input type="date" value="${istatBasEl.value}" onchange="document.getElementById('istatBas').value=this.value;renderDashboard();" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.75rem;outline:none;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:4px;">BİTİŞ</div>
+          <input type="date" value="${istatBitEl.value}" onchange="document.getElementById('istatBit').value=this.value;renderDashboard();" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.75rem;outline:none;">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button onclick="istatHizli(30)" class="chip" style="font-size:0.65rem;padding:3px 8px;">Son 30 gün</button>
+        <button onclick="istatHizli(90)" class="chip" style="font-size:0.65rem;padding:3px 8px;">Son 3 ay</button>
+        <button onclick="istatHizli(180)" class="chip" style="font-size:0.65rem;padding:3px 8px;">Son 6 ay</button>
+        <button onclick="istatHizli(0)" class="chip" style="font-size:0.65rem;padding:3px 8px;">Tümü</button>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div class="stat-card" style="padding:16px 12px;">
+      <div class="stat-card" style="padding:14px 12px;">
         <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">DOĞAN KUZU</div>
-        <div style="font-size:2.2rem;font-weight:700;color:var(--kuzu);line-height:1;">${doganKuzuSayisi}</div>
+        <div style="font-size:2rem;font-weight:700;color:var(--kuzu);line-height:1;">${doganKuzuSayisi}</div>
         <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${doguranSayi} koyun doğurdu</div>
       </div>
-      <div class="stat-card" style="padding:16px 12px;">
+      <div class="stat-card" style="padding:14px 12px;">
         <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">İKİZLİK ORANI</div>
-        <div style="font-size:2.2rem;font-weight:700;color:var(--warn);line-height:1;">%${ikizOran}</div>
+        <div style="font-size:2rem;font-weight:700;color:var(--warn);line-height:1;">%${ikizOran}</div>
         <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${ikizKuzu}/${doguranSayi} koyun</div>
       </div>
     </div>
-    ${gcaaOrtalama !== null ? `
-    <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px;">
-      <div class="stat-card" style="padding:16px 12px;">
-        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORTALAMA GCAA (KUZU)</div>
-        <div style="font-size:2.2rem;font-weight:700;color:var(--accent2);line-height:1;">${gcaaOrtalama} <span style="font-size:1rem;">gr/gün</span></div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${kuzularAgirlikli.length} kuzunun ortalaması</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div class="stat-card" style="padding:14px 12px;">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORT. DOĞUM AĞIRLIĞI</div>
+        <div style="font-size:2rem;font-weight:700;color:var(--accent2);line-height:1;">${ortDogumAgirligi ? ortDogumAgirligi + ' kg' : '—'}</div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${agirlikliKuzular.length} kuzunun ort.</div>
       </div>
-    </div>` : ''}
+      <div class="stat-card" style="padding:14px 12px;">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORTALAMA GCAA</div>
+        <div style="font-size:2rem;font-weight:700;color:var(--accent);line-height:1;">${gcaaOrtalama ? gcaaOrtalama + ' gr' : '—'}</div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${gcaaOrtalama ? kuzularAgirlikli.length + ' kuzunun ort.' : 'yeterli veri yok'}</div>
+      </div>
+    </div>
   `;
 }
 
@@ -2160,6 +2181,21 @@ function hesaplaIrk(irk, anneIrk, babaIrk) {
   if (!anneIrk && babaIrk) return babaIrk;
   if (anneIrk === babaIrk) return anneIrk;
   return 'Melez (' + anneIrk + ' x ' + babaIrk + ')';
+}
+
+function istatHizli(gun) {
+  const bit = today();
+  let bas;
+  if (gun === 0) {
+    bas = '2000-01-01';
+  } else {
+    const d = new Date();
+    d.setDate(d.getDate() - gun);
+    bas = d.toISOString().slice(0,10);
+  }
+  document.getElementById('istatBas').value = bas;
+  document.getElementById('istatBit').value = bit;
+  renderDashboard();
 }
 
 function filterAndShow(tur) {
