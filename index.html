@@ -611,7 +611,6 @@
   <button class="nav-btn" onclick="showPage('animals')">Hayvanlar</button>
   <button class="nav-btn" onclick="showPage('takvim')">📅 Takvim</button>
   <button class="nav-btn" onclick="showPage('rapor')">📊 Rapor</button>
-  <button class="nav-btn" onclick="showPage('reminders')">Hatırlatıcılar</button>
   <button class="nav-btn" onclick="showPage('gecmis')">Geçmiş</button>
 </nav>
 
@@ -631,6 +630,23 @@
   <input type="hidden" id="istatBas">
   <input type="hidden" id="istatBit">
   <div id="dashStats2" style="margin-top:16px;"></div>
+
+  <!-- Öngörülen Kâr -->
+  <div class="sec-title">Öngörülen Kâr</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">
+    <div style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:10px;">Mevcut kuzular satılsa tahmini kâr/zarar:</div>
+    <div class="form-row" style="margin-bottom:10px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Karkas Randımanı (%)</label>
+        <input class="form-input" id="dash_randiman" type="number" placeholder="48" value="48" min="1" max="100" oninput="renderOngorilenKar('dash')">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Karkas Fiyatı (₺/kg)</label>
+        <input class="form-input" id="dash_karkaskg" type="number" placeholder="350" oninput="renderOngorilenKar('dash')">
+      </div>
+    </div>
+    <div id="ongorilenKarDash"></div>
+  </div>
 </div>
 
 <!-- ANIMALS -->
@@ -844,6 +860,23 @@
   </div>
 
   <div id="raporIcerik"></div>
+
+  <!-- Öngörülen Kâr -->
+  <div class="sec-title">Öngörülen Kâr</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">
+    <div style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:10px;">Mevcut kuzular satılsa tahmini kâr/zarar:</div>
+    <div class="form-row" style="margin-bottom:10px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Karkas Randımanı (%)</label>
+        <input class="form-input" id="rapor_randiman" type="number" placeholder="48" value="48" min="1" max="100" oninput="renderOngorilenKar('rapor')">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Karkas Fiyatı (₺/kg)</label>
+        <input class="form-input" id="rapor_karkaskg" type="number" placeholder="350" oninput="renderOngorilenKar('rapor')">
+      </div>
+    </div>
+    <div id="ongorilenKarRapor"></div>
+  </div>
 </div>
 
 <!-- REMINDERS -->
@@ -1338,6 +1371,16 @@
   </div>
 </div>
 
+<!-- RAPOR DETAY MODAL -->
+<div class="modal-overlay" id="raporDetayModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="raporDetayBaslik">Detay</div>
+    <div id="raporDetayIcerik" style="max-height:50vh;overflow-y:auto;"></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:14px;" onclick="closeModal('raporDetayModal')">Kapat</button>
+  </div>
+</div>
+
 <!-- GEBELİK TAKİBİ MODAL -->
 <div class="modal-overlay" id="gebelikModal">
   <div class="modal">
@@ -1577,8 +1620,8 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  // Sadece nav'daki butonlar: dashboard, animals, takvim, rapor, reminders, gecmis
-  const navPages = window._navPages || ['dashboard','animals','takvim','rapor','reminders','gecmis'];
+  // Sadece nav'daki butonlar: dashboard, animals, takvim, rapor, gecmis
+  const navPages = window._navPages || ['dashboard','animals','takvim','rapor','gecmis'];
   const idx = navPages.indexOf(page);
   if (idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
   document.getElementById('fabBtn').style.display = ['detail','gecmis','ayarlar','suru','vet','takvim','reminders','rapor'].includes(page) || misafirModu ? 'none' : 'flex';
@@ -1802,10 +1845,10 @@ function renderDashboard() {
         <div style="font-size:2rem;font-weight:700;color:var(--accent2);line-height:1;">${ortDogumAgirligi ? ortDogumAgirligi + ' kg' : '—'}</div>
         <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${agirlikliKuzular.length} kuzunun ort.</div>
       </div>
-      <div class="stat-card" style="padding:14px 12px;">
-        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORTALAMA GCAA</div>
+      <div class="stat-card" style="padding:14px 12px;${gcaaOrtalama ? 'cursor:pointer;' : ''}" onclick="${gcaaOrtalama ? 'gcaaExcelExport()' : ''}" title="${gcaaOrtalama ? 'Excel için tıkla' : ''}">
+        <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:6px;">ORTALAMA GCAA ${gcaaOrtalama ? '📊' : ''}</div>
         <div style="font-size:2rem;font-weight:700;color:var(--accent);line-height:1;">${gcaaOrtalama ? gcaaOrtalama + ' gr' : '—'}</div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${gcaaOrtalama ? kuzularAgirlikli.length + ' kuzunun ort.' : 'yeterli veri yok'}</div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">${gcaaOrtalama ? kuzularAgirlikli.length + ' kuzu • Excel için tıkla' : 'yeterli veri yok'}</div>
       </div>
     </div>
   `;
@@ -2007,11 +2050,26 @@ function renderDetail() {
 
   const weights = a.weights || [];
   const sortedW = [...weights].sort((a,b) => new Date(b.tarih)-new Date(a.tarih));
+  const sortedAsc = [...weights].sort((a,b) => new Date(a.tarih)-new Date(b.tarih));
+  
+  // Bireysel GCAA hesapla
+  let bireyselGCAA = null;
+  if (sortedAsc.length >= 2) {
+    const ilk = sortedAsc[0];
+    const son = sortedAsc[sortedAsc.length-1];
+    const gunFark = Math.max(1, Math.round((new Date(son.tarih) - new Date(ilk.tarih)) / 86400000));
+    bireyselGCAA = Math.round(((son.agirlik - ilk.agirlik) * 1000) / gunFark);
+  }
+
   html += `<div class="detail-card">
     <div class="detail-card-title" style="display:flex;justify-content:space-between;align-items:center;">
       <span>Ağırlık Takibi</span>
       <button class="btn btn-sm btn-outline" onclick="openWeightModal('${a.id}')">+ Ekle</button>
     </div>
+    ${bireyselGCAA !== null ? `<div style="background:var(--surface2);border-radius:6px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;color:var(--text2);">GCAA</span>
+      <span style="font-size:1.1rem;font-weight:700;color:${bireyselGCAA > 0 ? 'var(--accent2)' : 'var(--danger)'};">${bireyselGCAA} gr/gün</span>
+    </div>` : ''}
     ${sortedW.length === 0 ? '<div style="color:var(--text2);font-size:0.85rem;padding:6px 0;">Kayıt yok</div>' : sortedW.map(w => `
       <div class="weight-item">
         <span style="font-weight:600">${w.agirlik} kg</span>
@@ -2394,6 +2452,38 @@ function hesaplaIrk(irk, anneIrk, babaIrk) {
   if (!anneIrk && babaIrk) return babaIrk;
   if (anneIrk === babaIrk) return anneIrk;
   return 'Melez (' + anneIrk + ' x ' + babaIrk + ')';
+}
+
+function gcaaExcelExport() {
+  if (typeof XLSX === 'undefined') { showToast('⚠️ İnternet bağlantısı gerekli!'); return; }
+  if (!confirm('Kuzuların GCAA tablosu Excel olarak indirilsin mi?')) return;
+
+  const bas = document.getElementById('istatBas').value || '2000-01-01';
+  const bit = document.getElementById('istatBit').value || today();
+
+  const kuzular = animals.filter(a => {
+    if (!a.dogumTarihi) return false;
+    const d = new Date(a.dogumTarihi);
+    return d >= new Date(bas) && d <= new Date(bit) && a.weights && a.weights.length >= 2;
+  });
+
+  const data = [['Küpe No', 'İsim', 'Doğum Tarihi', 'İlk Tartım', 'İlk Ağırlık (kg)', 'Son Tartım', 'Son Ağırlık (kg)', 'Gün Farkı', 'GCAA (gr/gün)']];
+
+  kuzular.forEach(a => {
+    const sortedW = [...a.weights].sort((x,y) => new Date(x.tarih) - new Date(y.tarih));
+    const ilk = sortedW[0];
+    const son = sortedW[sortedW.length-1];
+    const gunFark = Math.max(1, Math.round((new Date(son.tarih) - new Date(ilk.tarih)) / 86400000));
+    const gcaa = Math.round(((son.agirlik - ilk.agirlik) * 1000) / gunFark);
+    data.push([a.kupe||'', a.isim||'', a.dogumTarihi||'', ilk.tarih, ilk.agirlik, son.tarih, son.agirlik, gunFark, gcaa]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:16},{wch:10},{wch:12},{wch:12},{wch:10},{wch:12},{wch:10},{wch:8},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'GCAA Tablosu');
+  XLSX.writeFile(wb, `gcaa_${bas}_${bit}.xlsx`);
+  showToast('✓ GCAA tablosu indirildi!');
 }
 
 function istatHizli(gun) {
@@ -3278,7 +3368,6 @@ async function readKupeFromPhoto(event) {
 // ===== SWIPE NAVİGASYON =====
 (function() {
   let startX = 0, startY = 0;
-  const navPages = ['dashboard','animals','takvim','rapor','reminders','gecmis'];
   
   document.addEventListener('touchstart', e => {
     startX = e.touches[0].clientX;
@@ -3288,25 +3377,21 @@ async function readKupeFromPhoto(event) {
   document.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - startX;
     const dy = e.changedTouches[0].clientY - startY;
-    
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
     if (document.querySelector('.modal-overlay.open')) return;
-
-    // Detail sayfasında sağa kaydır → hayvanlar listesine dön
     if (currentPage === 'detail') {
       if (dx > 0) showPage('animals');
       return;
     }
-    
+    // Dinamik navPages — kayıtlı sırayı kullan
+    const navPages = window._navPages || ['dashboard','animals','takvim','rapor','reminders','gecmis'];
     const idx = navPages.indexOf(currentPage);
     if (idx === -1) return;
-    
     if (dx < 0 && idx < navPages.length - 1) {
       showPage(navPages[idx + 1]);
     } else if (dx > 0 && idx > 0) {
       showPage(navPages[idx - 1]);
     }
-    // Aktif nav butonunu ortaya scroll et
     setTimeout(() => {
       const activeBtn = document.querySelector('.nav-btn.active');
       if (activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -3341,7 +3426,6 @@ const varsayilanSekmeler = [
   { id: 'animals', label: 'Hayvanlar' },
   { id: 'takvim', label: '📅 Takvim' },
   { id: 'rapor', label: '📊 Rapor' },
-  { id: 'reminders', label: 'Hatırlatıcılar' },
   { id: 'gecmis', label: 'Geçmiş' }
 ];
 
@@ -3764,6 +3848,143 @@ function haftalikMaliKapat() {
   ['gider_yem','gider_ilac','gider_vet','gider_diger','gider_not'].forEach(id => document.getElementById(id).value = '');
 }
 
+function raporDetayAc(tip, bas, bit) {
+  const basliklar = { gelir: '💰 Gelir Detayı', gider: '📤 Gider Detayı', net: '📊 Gelir / Gider Özeti' };
+  document.getElementById('raporDetayBaslik').textContent = basliklar[tip];
+
+  let html = '';
+
+  if (tip === 'gelir' || tip === 'net') {
+    // Hayvan gelirleri
+    const hayvanGelirleri = animals.filter(a => a.durumTarih >= bas && a.durumTarih <= bit && (a.durum==='satildi'||a.durum==='kesildi') && a.durumFiyat);
+    const manuelGelirler = getGelirler().filter(g => g.tarih >= bas && g.tarih <= bit);
+    const toplamHayvan = hayvanGelirleri.reduce((s,a) => s+(a.durumFiyat||0), 0);
+    const toplamManuel = manuelGelirler.reduce((s,g) => s+g.tutar, 0);
+
+    if (hayvanGelirleri.length > 0 || manuelGelirler.length > 0) {
+      html += `<div class="sec-title" style="margin-top:0;">Hayvan Gelirleri</div>`;
+      hayvanGelirleri.forEach(a => {
+        html += `<div class="ozet-item"><span>${a.isim||a.kupe} (${a.durum==='satildi'?'Satış':'Kesim'}) • ${a.durumTarih}</span><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;">${(a.durumFiyat||0).toLocaleString('tr-TR')} ₺</span></div>`;
+      });
+      if (manuelGelirler.length > 0) {
+        html += `<div class="sec-title">Diğer Gelirler</div>`;
+        manuelGelirler.forEach(g => {
+          html += `<div class="ozet-item"><span>${gelirKategoriLabel[g.kategori]||g.kategori} • ${g.tarih}${g.not?' • '+g.not:''}</span><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;">${g.tutar.toLocaleString('tr-TR')} ₺</span></div>`;
+        });
+      }
+      html += `<div class="ozet-item" style="font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:8px;"><span>Toplam Gelir</span><span style="color:var(--accent);">${(toplamHayvan+toplamManuel).toLocaleString('tr-TR')} ₺</span></div>`;
+    } else {
+      html += '<div style="color:var(--text2);font-size:0.85rem;padding:8px 0;">Bu dönemde gelir kaydı yok</div>';
+    }
+  }
+
+  if (tip === 'gider' || tip === 'net') {
+    const donemGiderler = getGiderler().filter(g => g.tarih >= bas && g.tarih <= bit);
+    const sabitToplamGider = sabitGiderToplamDonem(bas, bit);
+    const ekGider = donemGiderler.reduce((s,g) => s+g.tutar, 0);
+    const sg = getSabitGiderler();
+
+    html += `<div class="sec-title" style="${tip==='net'?'':'margin-top:0;'}">Giderler</div>`;
+    if (sabitToplamGider > 0) {
+      (sg.kategoriler||[]).forEach(k => {
+        const gercekBas = k.baslangic && k.baslangic > bas ? k.baslangic : bas;
+        if (gercekBas > bit) return;
+        const gun = Math.max(1, Math.round((new Date(bit) - new Date(gercekBas)) / 86400000) + 1);
+        html += `<div class="ozet-item"><span>${k.isim} (sabit) • ${gun} gün</span><span style="color:var(--danger);font-family:'JetBrains Mono',monospace;">${(k.tutar*gun).toLocaleString('tr-TR')} ₺</span></div>`;
+      });
+    }
+    donemGiderler.forEach(g => {
+      html += `<div class="ozet-item"><span>${kategoriLabel[g.kategori]||g.kategori} • ${g.tarih}${g.not?' • '+g.not:''}</span><span style="color:var(--danger);font-family:'JetBrains Mono',monospace;">${g.tutar.toLocaleString('tr-TR')} ₺</span></div>`;
+    });
+    html += `<div class="ozet-item" style="font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:8px;"><span>Toplam Gider</span><span style="color:var(--danger);">${(ekGider+sabitToplamGider).toLocaleString('tr-TR')} ₺</span></div>`;
+  }
+
+  if (tip === 'net') {
+    const hayvanGelirleri = animals.filter(a => a.durumTarih >= bas && a.durumTarih <= bit && (a.durum==='satildi'||a.durum==='kesildi') && a.durumFiyat);
+    const manuelGelirler = getGelirler().filter(g => g.tarih >= bas && g.tarih <= bit);
+    const donemGiderler = getGiderler().filter(g => g.tarih >= bas && g.tarih <= bit);
+    const toplamG = hayvanGelirleri.reduce((s,a) => s+(a.durumFiyat||0), 0) + manuelGelirler.reduce((s,g) => s+g.tutar, 0);
+    const toplamD = donemGiderler.reduce((s,g) => s+g.tutar, 0) + sabitGiderToplamDonem(bas, bit);
+    const net = toplamG - toplamD;
+    html += `<div class="ozet-item" style="font-weight:700;font-size:1rem;border-top:2px solid var(--border);margin-top:8px;padding-top:10px;"><span>NET KAR/ZARAR</span><span style="color:${net>=0?'var(--accent)':'var(--danger)'};">${net>=0?'+':''}${net.toLocaleString('tr-TR')} ₺</span></div>`;
+  }
+
+  document.getElementById('raporDetayIcerik').innerHTML = html;
+  document.getElementById('raporDetayModal').classList.add('open');
+}
+
+// ===== ÖNGÖRİLEN KÂR =====
+function renderOngorilenKar(prefix) {
+  const randiman = parseFloat(document.getElementById(prefix + '_randiman')?.value) || 0;
+  const karkasKg = parseFloat(document.getElementById(prefix + '_karkaskg')?.value) || 0;
+  const elId = prefix === 'dash' ? 'ongorilenKarDash' : 'ongorilenKarRapor';
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  if (!karkasKg || !randiman) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:0.82rem;">Karkas fiyatını girin</div>';
+    return;
+  }
+
+  const kuzular = animals.filter(a => a.tur === 'kuzu' && (!a.durum || a.durum === 'hayatta'));
+  if (kuzular.length === 0) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:0.82rem;">Aktif kuzu yok</div>';
+    return;
+  }
+
+  let toplamCanlı = 0, agirlikliSayi = 0;
+  kuzular.forEach(a => {
+    let agirlik = 0;
+    if (a.weights && a.weights.length > 0) {
+      const sortedW = [...a.weights].sort((x,y) => new Date(y.tarih) - new Date(x.tarih));
+      agirlik = sortedW[0].agirlik;
+    } else if (a.dogumAgirlik) {
+      agirlik = parseFloat(a.dogumAgirlik);
+    }
+    if (agirlik > 0) { toplamCanlı += agirlik; agirlikliSayi++; }
+  });
+
+  const toplamKarkas = toplamCanlı * (randiman / 100);
+  const tahminiGelir = toplamKarkas * karkasKg;
+
+  const bugun = today();
+  const ilkDogum = kuzular.filter(a => a.dogumTarihi).map(a => a.dogumTarihi).sort()[0] || bugun;
+  const ekGider = getGiderler().filter(g => g.tarih >= ilkDogum && g.tarih <= bugun).reduce((s,g) => s+g.tutar, 0);
+  const sabitGider = sabitGiderToplamDonem(ilkDogum, bugun);
+  const toplamGider = ekGider + sabitGider;
+  const netKar = tahminiGelir - toplamGider;
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;">
+        <div style="font-size:0.62rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:4px;">TOPLAM CANLI AĞIRLIK</div>
+        <div style="font-size:1.2rem;font-weight:700;color:var(--text);">${toplamCanlı.toFixed(1)} kg</div>
+        <div style="font-size:0.65rem;color:var(--text2);">${agirlikliSayi}/${kuzular.length} kuzunun verisi var</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;">
+        <div style="font-size:0.62rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:4px;">TOPLAM KARKAS</div>
+        <div style="font-size:1.2rem;font-weight:700;color:var(--text);">${toplamKarkas.toFixed(1)} kg</div>
+        <div style="font-size:0.65rem;color:var(--text2);">%${randiman} randıman</div>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.85rem;">
+        <span style="color:var(--text2);">Tahmini Gelir</span>
+        <span style="color:var(--accent);font-weight:700;">${tahminiGelir.toLocaleString('tr-TR')} ₺</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.85rem;">
+        <span style="color:var(--text2);">Toplam Gider</span>
+        <span style="color:var(--danger);">-${toplamGider.toLocaleString('tr-TR')} ₺</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:700;border-top:1px solid var(--border);padding-top:8px;">
+        <span>Öngörülen Net Kâr</span>
+        <span style="color:${netKar >= 0 ? 'var(--accent)' : 'var(--danger)'};">${netKar >= 0 ? '+' : ''}${netKar.toLocaleString('tr-TR')} ₺</span>
+      </div>
+    </div>
+    ${agirlikliSayi < kuzular.length ? `<div style="font-size:0.72rem;color:var(--warn);font-family:'JetBrains Mono',monospace;">⚠️ ${kuzular.length - agirlikliSayi} kuzunun ağırlık verisi yok, hesaba katılmadı</div>` : ''}
+  `;
+}
+
 function renderRaporPage() {
   // Varsayılan: son 6 ay
   if (!document.getElementById('rapor_bas').value) {
@@ -3835,8 +4056,35 @@ function renderRapor() {
   // kg başına fiyat
   const kgFiyat = toplamAgirlik > 0 ? (toplamGelir / toplamAgirlik).toFixed(0) : null;
 
+  // Gider/gelir toplamları özet kartlar için
+  const donemGiderlerOzet = getGiderler().filter(g => g.tarih >= bas && g.tarih <= bit);
+  const manuelGelirlerOzet = getGelirler().filter(g => g.tarih >= bas && g.tarih <= bit);
+  const sabitGiderOzet = sabitGiderToplamDonem(bas, bit);
+  const toplamTumGelir = toplamGelir + manuelGelirlerOzet.reduce((s,g) => s+g.tutar, 0);
+  const toplamTumGider = donemGiderlerOzet.reduce((s,g) => s+g.tutar, 0) + sabitGiderOzet;
+  const netKarOzet = toplamTumGelir - toplamTumGider;
+
   const el = document.getElementById('raporIcerik');
   el.innerHTML = `
+    <!-- Özet kartlar -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+      <div class="stat-card" style="padding:12px 8px;cursor:pointer;border-color:var(--accent);" onclick="raporDetayAc('gelir','${bas}','${bit}')">
+        <div style="font-size:0.58rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:4px;">GELİR 📋</div>
+        <div style="font-size:1.3rem;font-weight:700;color:var(--accent);line-height:1;">${toplamTumGelir > 0 ? toplamTumGelir.toLocaleString('tr-TR') : '—'}</div>
+        <div style="font-size:0.6rem;color:var(--text2);margin-top:2px;">₺ • tıkla</div>
+      </div>
+      <div class="stat-card" style="padding:12px 8px;cursor:pointer;border-color:var(--danger);" onclick="raporDetayAc('gider','${bas}','${bit}')">
+        <div style="font-size:0.58rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:4px;">GİDER 📋</div>
+        <div style="font-size:1.3rem;font-weight:700;color:var(--danger);line-height:1;">${toplamTumGider > 0 ? toplamTumGider.toLocaleString('tr-TR') : '—'}</div>
+        <div style="font-size:0.6rem;color:var(--text2);margin-top:2px;">₺ • tıkla</div>
+      </div>
+      <div class="stat-card" style="padding:12px 8px;cursor:pointer;border-color:${netKarOzet >= 0 ? 'var(--accent2)' : 'var(--danger)'};" onclick="raporDetayAc('net','${bas}','${bit}')">
+        <div style="font-size:0.58rem;font-family:'JetBrains Mono',monospace;color:var(--text2);margin-bottom:4px;">NET 📋</div>
+        <div style="font-size:1.3rem;font-weight:700;color:${netKarOzet >= 0 ? 'var(--accent2)' : 'var(--danger)'};line-height:1;">${netKarOzet >= 0 ? '+' : ''}${netKarOzet.toLocaleString('tr-TR')}</div>
+        <div style="font-size:0.6rem;color:var(--text2);margin-top:2px;">₺ • tıkla</div>
+      </div>
+    </div>
+
     <div class="sec-title">${bas} — ${bit} dönemi</div>
     
     <!-- Ana istatistikler -->
