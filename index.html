@@ -1660,6 +1660,10 @@ window.addEventListener('popstate', e => {
 
 // ===== DASHBOARD =====
 function renderDashboard() {
+  const _r = localStorage.getItem('ongorulen_randiman');
+  const _k = localStorage.getItem('ongorulen_karkaskg');
+  if (_r) { const el = document.getElementById('dash_randiman'); if (el) el.value = _r; }
+  if (_k) { const el = document.getElementById('dash_karkaskg'); if (el) el.value = _k; }
   const koç = animals.filter(a => a.tur === 'koç' && (!a.durum || a.durum === 'hayatta')).length;
   const koyun = animals.filter(a => a.tur === 'koyun' && (!a.durum || a.durum === 'hayatta')).length;
   const kuzu = animals.filter(a => a.tur === 'kuzu' && (!a.durum || a.durum === 'hayatta')).length;
@@ -3917,6 +3921,8 @@ function raporDetayAc(tip, bas, bit) {
 function renderOngorilenKar(prefix) {
   const randiman = parseFloat(document.getElementById(prefix + '_randiman')?.value) || 0;
   const karkasKg = parseFloat(document.getElementById(prefix + '_karkaskg')?.value) || 0;
+  if (randiman) localStorage.setItem('ongorulen_randiman', randiman);
+  if (karkasKg) localStorage.setItem('ongorulen_karkaskg', karkasKg);
   const elId = prefix === 'dash' ? 'ongorilenKarDash' : 'ongorilenKarRapor';
   const el = document.getElementById(elId);
   if (!el) return;
@@ -3986,6 +3992,10 @@ function renderOngorilenKar(prefix) {
 }
 
 function renderRaporPage() {
+  const _r = localStorage.getItem('ongorulen_randiman');
+  const _k = localStorage.getItem('ongorulen_karkaskg');
+  if (_r) { const el = document.getElementById('rapor_randiman'); if (el) el.value = _r; }
+  if (_k) { const el = document.getElementById('rapor_karkaskg'); if (el) el.value = _k; }
   // Varsayılan: son 6 ay
   if (!document.getElementById('rapor_bas').value) {
     raporHizliFiltre(6);
