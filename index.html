@@ -1676,9 +1676,15 @@ function renderDashboard() {
   document.getElementById('headerSub').textContent = `Toplam ${animals.length} hayvan`;
 
   // Yaklaşan aşılar
-  const upcoming = [];
+ const upcoming = [];
   animals.forEach(a => {
+    const sonAsilar = {};
     (a.vaccines || []).forEach(v => {
+      if (!sonAsilar[v.isim] || v.tarih > sonAsilar[v.isim].tarih) {
+        sonAsilar[v.isim] = v;
+      }
+    });
+    Object.values(sonAsilar).forEach(v => {
       const nd = nextVaccineDate(v);
       if (nd) {
         const days = daysUntil(nd);
@@ -2194,9 +2200,15 @@ function renderDetail() {
 
 // ===== REMINDERS =====
 function renderReminders() {
-  const upcoming = [];
+const upcoming = [];
   animals.forEach(a => {
+    const sonAsilar = {};
     (a.vaccines || []).forEach(v => {
+      if (!sonAsilar[v.isim] || v.tarih > sonAsilar[v.isim].tarih) {
+        sonAsilar[v.isim] = v;
+      }
+    });
+    Object.values(sonAsilar).forEach(v => {
       const nd = nextVaccineDate(v);
       if (nd) {
         const days = daysUntil(nd);
